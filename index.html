@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>ThaiSocial - 泰国社交活动平台</title>
+<style>
+:root {
+  --bg-primary: #0a0e17;
+  --bg-secondary: #111827;
+  --bg-card: rgba(17, 25, 40, 0.75);
+  --bg-glass: rgba(15, 23, 42, 0.65);
+  --border-glow: rgba(99, 102, 241, 0.35);
+  --accent-1: #6366f1;
+  --accent-2: #8b5cf6;
+  --accent-3: #a855f7;
+  --accent-4: #ec4899;
+  --accent-5: #f43f5e;
+  --neon-cyan: #22d3ee;
+  --neon-green: #34d399;
+  --neon-orange: #fb923c;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --gold: #fbbf24;
+  --safe-bottom: env(safe-area-inset-bottom, 16px);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%; width: 100%; overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', 'Noto Sans Thai', sans-serif;
+  background: var(--bg-primary); color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none; -webkit-user-select: none;
+}
+#particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.app-container {
+  position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column;
+  max-width: 480px; margin: 0 auto; overflow: hidden;
+}
+.page { display: none; flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px 16px 90px; flex-direction: column; gap: 14px; }
+.page.active { display: flex; }
+.page::-webkit-scrollbar { width: 3px; }
+.page::-webkit-scrollbar-thumb { background: var(--accent-1); border-radius: 3px; }
+
+/* 粒子背景 */
+#particles canvas { display: block; }
+
+/* 毛玻璃卡片 */
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 16px; padding: 16px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.glass-card:active { transform: scale(0.98); }
+
+/* 发光边框 */
+.glow-border {
+  position: relative;
+}
+.glow-border::before {
+  content: ''; position: absolute; inset: -1px; border-radius: 17px; padding: 1px;
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-3), var(--accent-4));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: 0.6; pointer-events: none; z-index: 0;
+}
+.glow-border > * { position: relative; z-index: 1; }
+
+/* 霓虹文字 */
+.neon-text {
+  background: linear-gradient(135deg, var(--neon-cyan), var(--accent-3), var(--accent-4));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; font-weight: 800;
+}
+
+/* 按钮样式 */
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-3));
+  color: #fff; border: none; border-radius: 10px; padding: 10px 20px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  position: relative; overflow: hidden;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+.btn-primary:active { transform: scale(0.95); box-shadow: 0 2px 8px rgba(99, 102, 241, 0.6); }
+.btn-outline {
+  background: transparent; color: var(--accent-3); border: 1px solid var(--accent-3);
+  border-radius: 10px; padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-outline:active { background: rgba(168, 85, 247, 0.15); }
+.btn-sm { padding: 6px 14px; font-size: 12px; border-radius: 8px; }
+.btn-gold {
+  background: linear-gradient(135deg, var(--gold), #f59e0b);
+  color: #1a1a2e; border: none; border-radius: 10px; padding: 10px 20px;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 4px 15px rgba(251, 191, 36, 0.4);
+  transition: all 0.2s ease;
+}
+.btn-gold:active { transform: scale(0.95); }
+
+/* 底部导航 */
+.bottom-nav {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(10, 14, 23, 0.92);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(99, 102, 241, 0.25);
+  display: flex; justify-content: space-around; align-items: center;
+  padding: 8px 0 calc(8px + var(--safe-bottom));
+}
+.nav-item {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; padding: 4px 12px; transition: all 0.2s ease;
+  color: var(--text-muted); font-size: 10px; position: relative;
+}
+.nav-item.active { color: var(--accent-3); }
+.nav-item.active::before {
+  content: ''; position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+  width: 24px; height: 2px; background: var(--accent-3); border-radius: 2px;
+  box-shadow: 0 0 10px var(--accent-3);
+}
+.nav-item svg { width: 22px; height: 22px; transition: all 0.2s ease; }
+.nav-item.active svg { filter: drop-shadow(0 0 6px var(--accent-3)); }
+
+/* 顶部栏 */
+.top-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 4px; flex-shrink: 0;
+}
+.city-selector {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg-glass); backdrop-filter: blur(12px);
+  border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 20px;
+  padding: 8px 16px; cursor: pointer; font-weight: 600; font-size: 14px;
+  transition: all 0.2s ease;
+}
+.city-selector:active { border-color: var(--accent-3); }
+.city-dropdown {
+  position: absolute; top: 52px; left: 16px; z-index: 200;
+  background: var(--bg-secondary); border: 1px solid rgba(99,102,241,0.4);
+  border-radius: 14px; overflow: hidden; display: none; min-width: 140px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+.city-dropdown.show { display: block; }
+.city-option {
+  padding: 12px 20px; cursor: pointer; font-size: 13px;
+  transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.city-option:last-child { border-bottom: none; }
+.city-option:hover, .city-option:active { background: rgba(99,102,241,0.2); color: var(--accent-3); }
+
+/* 动态卡片 */
+.feed-card { overflow: hidden; }
+.feed-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.feed-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-4));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 16px; color: #fff; flex-shrink: 0;
+}
+.feed-user-info { flex: 1; }
+.feed-nickname { font-weight: 600; font-size: 13px; }
+.feed-time { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.feed-content { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 10px; }
+.feed-image {
+  width: 100%; border-radius: 12px; margin-bottom: 10px;
+  aspect-ratio: 16/10; object-fit: cover;
+  background: linear-gradient(135deg, #1e293b, #334155);
+}
+.feed-actions { display: flex; gap: 24px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); }
+.feed-action { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-muted); cursor: pointer; }
+.feed-action svg { width: 16px; height: 16px; }
+
+/* 活动招募卡片（嵌入动态流） */
+.recruit-card {
+  background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,85,247,0.1));
+  border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 14px; padding: 14px; margin-bottom: 10px;
+}
+.recruit-cover {
+  width: 100%; height: 140px; border-radius: 10px; object-fit: cover;
+  background: linear-gradient(135deg, #1e1b4b, #312e81);
+}
+.recruit-title { font-weight: 700; font-size: 15px; margin: 10px 0 6px; }
+.recruit-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--text-muted); }
+.recruit-meta span { display: flex; align-items: center; gap: 3px; }
+.recruit-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+.recruit-people { font-size: 12px; color: var(--neon-orange); font-weight: 600; }
+
+/* 活动列表卡片 */
+.activity-card { overflow: hidden; cursor: pointer; display: flex; gap: 14px; }
+.activity-cover {
+  width: 110px; height: 110px; border-radius: 12px; flex-shrink: 0; object-fit: cover;
+  background: linear-gradient(135deg, #1e1b4b, #312e81);
+}
+.activity-info { flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.activity-title { font-weight: 700; font-size: 14px; line-height: 1.3; }
+.activity-host { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
+.activity-host-avatar {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-4), var(--accent-5));
+}
+.activity-detail { font-size: 11px; color: var(--text-muted); display: flex; gap: 10px; flex-wrap: wrap; }
+.activity-detail span { display: flex; align-items: center; gap: 3px; }
+.activity-price {
+  font-weight: 700; font-size: 13px;
+  background: linear-gradient(135deg, var(--neon-green), var(--neon-cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.activity-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
+.activity-slots { font-size: 11px; color: var(--text-muted); }
+
+/* 筛选标签 */
+.filter-tabs {
+  display: flex; gap: 8px; overflow-x: auto; padding: 4px 0; flex-shrink: 0;
+  scrollbar-width: none; -ms-overflow-style: none;
+}
+.filter-tabs::-webkit-scrollbar { display: none; }
+.filter-tab {
+  padding: 7px 16px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  white-space: nowrap; cursor: pointer; transition: all 0.2s ease;
+  background: var(--bg-glass); border: 1px solid rgba(255,255,255,0.08); color: var(--text-muted);
+}
+.filter-tab.active {
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-3));
+  color: #fff; border-color: transparent;
+  box-shadow: 0 4px 12px rgba(99,102,241,0.4);
+}
+
+/* 搜索框 */
+.search-box {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg-glass); backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+  padding: 10px 14px; flex-shrink: 0;
+}
+.search-box svg { width: 18px; height: 18px; color: var(--text-muted); flex-shrink: 0; }
+.search-box input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--text-primary); font-size: 14px;
+}
+.search-box input::placeholder { color: var(--text-muted); }
+
+/* 场地卡片 */
+.venue-card { overflow: hidden; }
+.venue-image {
+  width: 100%; height: 160px; border-radius: 12px; object-fit: cover; margin-bottom: 12px;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+}
+.venue-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px; }
+.venue-name { font-weight: 700; font-size: 16px; }
+.venue-tag {
+  font-size: 10px; padding: 3px 10px; border-radius: 10px; font-weight: 600;
+  background: rgba(34, 211, 238, 0.15); color: var(--neon-cyan); white-space: nowrap;
+}
+.venue-meta { display: flex; gap: 16px; font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+.venue-actions { display: flex; gap: 10px; }
+
+/* 消息列表 */
+.chat-item {
+  display: flex; align-items: center; gap: 12px; padding: 4px 0; cursor: pointer;
+}
+.chat-avatar {
+  width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-3));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; color: #fff; position: relative;
+}
+.chat-avatar.group {
+  background: linear-gradient(135deg, var(--accent-4), var(--neon-orange));
+}
+.chat-avatar.group::after {
+  content: '👥'; position: absolute; bottom: -2px; right: -2px;
+  font-size: 14px; background: var(--bg-secondary); border-radius: 50%; padding: 2px;
+}
+.chat-info { flex: 1; min-width: 0; }
+.chat-name { font-weight: 600; font-size: 14px; }
+.chat-preview { font-size: 12px; color: var(--text-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-meta { text-align: right; flex-shrink: 0; }
+.chat-time { font-size: 11px; color: var(--text-muted); }
+.chat-badge {
+  display: inline-block; min-width: 18px; height: 18px; line-height: 18px; text-align: center;
+  background: var(--accent-5); color: #fff; font-size: 10px; font-weight: 700;
+  border-radius: 9px; padding: 0 5px; margin-top: 4px;
+}
+
+/* 我的页面 */
+.profile-card {
+  text-align: center; padding: 24px 16px; position: relative; overflow: hidden;
+}
+.profile-card::before {
+  content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+  background: radial-gradient(circle at 50% 0%, rgba(139,92,246,0.15), transparent 60%);
+}
+.profile-avatar {
+  width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 12px;
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-4), var(--accent-3));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; font-weight: 800; color: #fff;
+  border: 3px solid rgba(139,92,246,0.5);
+  box-shadow: 0 0 30px rgba(139,92,246,0.3);
+}
+.profile-name { font-size: 20px; font-weight: 700; }
+.profile-badges { display: flex; justify-content: center; gap: 12px; margin-top: 8px; font-size: 12px; }
+.profile-badge {
+  display: flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 12px; font-weight: 600;
+}
+.profile-badge.credit { background: rgba(251,191,36,0.15); color: var(--gold); }
+.profile-badge.verify { background: rgba(34,211,238,0.15); color: var(--neon-cyan); }
+.profile-stats {
+  display: flex; justify-content: space-around; margin-top: 16px;
+  padding: 14px 0; border-top: 1px solid rgba(255,255,255,0.06);
+}
+.profile-stat { text-align: center; }
+.profile-stat-val { font-size: 20px; font-weight: 800; background: linear-gradient(135deg, var(--neon-cyan), var(--accent-3)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.profile-stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.menu-list { display: flex; flex-direction: column; }
+.menu-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 15px 0; cursor: pointer; border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: all 0.15s;
+}
+.menu-item:active { opacity: 0.7; }
+.menu-item-left { display: flex; align-items: center; gap: 12px; }
+.menu-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.menu-icon.i1 { background: rgba(99,102,241,0.2); }
+.menu-icon.i2 { background: rgba(236,72,153,0.2); }
+.menu-icon.i3 { background: rgba(34,211,238,0.2); }
+.menu-icon.i4 { background: rgba(251,191,36,0.2); }
+.menu-icon.i5 { background: rgba(52,211,153,0.2); }
+.menu-icon.i6 { background: rgba(244,63,94,0.2); }
+.menu-label { font-size: 14px; font-weight: 500; }
+.menu-arrow { color: var(--text-muted); font-size: 14px; }
+
+/* 浮动按钮 */
+.fab {
+  position: fixed; bottom: 90px; right: 20px; z-index: 150;
+  width: 52px; height: 52px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-3));
+  border: none; color: #fff; font-size: 28px; cursor: pointer;
+  box-shadow: 0 8px 25px rgba(99,102,241,0.5);
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.3s ease;
+}
+.fab:active { transform: scale(0.9); box-shadow: 0 4px 15px rgba(99,102,241,0.7); }
+
+/* 弹窗/模态框 */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(6px);
+  display: none; align-items: flex-end; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal-sheet {
+  width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto;
+  background: var(--bg-secondary); border-radius: 20px 20px 0 0;
+  padding: 8px 16px 24px;
+  border: 1px solid rgba(99,102,241,0.3);
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-handle {
+  width: 36px; height: 4px; background: rgba(255,255,255,0.2);
+  border-radius: 2px; margin: 0 auto 16px;
+}
+.modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; text-align: center; }
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 600; }
+.form-input, .form-select {
+  width: 100%; padding: 12px 14px; border-radius: 10px; font-size: 14px;
+  background: var(--bg-glass); border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary); outline: none; transition: border-color 0.2s;
+}
+.form-input:focus, .form-select:focus { border-color: var(--accent-3); }
+.form-select { appearance: none; -webkit-appearance: none; }
+.form-textarea { min-height: 80px; resize: vertical; }
+.payment-option {
+  display: flex; align-items: center; gap: 12px; padding: 14px;
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+  cursor: pointer; margin-bottom: 8px; transition: all 0.2s;
+  background: var(--bg-glass);
+}
+.payment-option.selected {
+  border-color: var(--accent-3); background: rgba(139,92,246,0.1);
+  box-shadow: 0 0 15px rgba(139,92,246,0.2);
+}
+.payment-icon {
+  width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 12px; color: #fff; flex-shrink: 0;
+}
+.payment-icon.promptpay { background: linear-gradient(135deg, #004d40, #00695c); }
+.payment-icon.truemoney { background: linear-gradient(135deg, #e65100, #f57c00); }
+.payment-icon.visa { background: linear-gradient(135deg, #0d47a1, #1565c0); }
+.payment-icon.alipay { background: linear-gradient(135deg, #1677ff, #4096ff); }
+
+/* 成功动画 */
+.success-overlay {
+  position: fixed; inset: 0; z-index: 400;
+  background: rgba(0,0,0,0.85); display: none;
+  align-items: center; justify-content: center; flex-direction: column;
+}
+.success-overlay.show { display: flex; }
+.success-circle {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--neon-green), var(--neon-cyan));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 40px; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 0 40px rgba(52,211,153,0.5);
+}
+@keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+.success-text { margin-top: 20px; font-size: 20px; font-weight: 700; }
+
+/* 活动详情弹窗 */
+.detail-cover {
+  width: 100%; height: 180px; border-radius: 14px; object-fit: cover; margin-bottom: 14px;
+  background: linear-gradient(135deg, #1e1b4b, #312e81);
+}
+.detail-section { margin-top: 14px; }
+.detail-section-title { font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; }
+.participant-avatars { display: flex; gap: -6px; flex-wrap: wrap; }
+.participant-avatar {
+  width: 36px; height: 36px; border-radius: 50%; margin-left: -8px;
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-4));
+  border: 2px solid var(--bg-secondary); display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: #fff; font-weight: 700;
+}
+.participant-avatar:first-child { margin-left: 0; }
+.map-placeholder {
+  width: 100%; height: 120px; border-radius: 12px;
+  background: linear-gradient(135deg, #1e293b, #0f172a);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); font-size: 13px; border: 1px dashed rgba(255,255,255,0.15);
+}
+
+/* 下拉刷新 */
+.pull-hint {
+  text-align: center; padding: 12px; color: var(--text-muted); font-size: 12px;
+  display: none;
+}
+
+/* 过渡动画 */
+.page {
+  animation: fadeIn 0.25s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Toast */
+.toast {
+  position: fixed; top: 60px; left: 50%; transform: translateX(-50%); z-index: 500;
+  background: var(--bg-secondary); border: 1px solid var(--accent-3);
+  border-radius: 10px; padding: 10px 20px; font-size: 13px; font-weight: 600;
+  color: var(--text-primary); box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="particles"><canvas id="particleCanvas"></canvas></div>
+
+<div class="app-container" id="appContainer">
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- 发现页 -->
+  <div class="page active" id="page-discover">
+    <div class="top-bar" style="position:relative;">
+      <div class="city-selector" id="citySelector" onclick="toggleCityDropdown()">
+        <span id="currentCity">曼谷</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="city-dropdown" id="cityDropdown">
+        <div class="city-option" onclick="selectCity('曼谷')">曼谷</div>
+        <div class="city-option" onclick="selectCity('清迈')">清迈</div>
+        <div class="city-option" onclick="selectCity('普吉')">普吉</div>
+        <div class="city-option" onclick="selectCity('芭提雅')">芭提雅</div>
+      </div>
+      <span class="neon-text" style="font-size:18px;">ThaiSocial</span>
+    </div>
+    <div id="feedContainer"></div>
+  </div>
+
+  <!-- 活动页 -->
+  <div class="page" id="page-activity">
+    <div class="top-bar"><span class="neon-text" style="font-size:18px;">探索活动</span></div>
+    <div class="filter-tabs" id="activityFilters">
+      <div class="filter-tab active" data-filter="全部" onclick="filterActivities('全部', this)">全部</div>
+      <div class="filter-tab" data-filter="户外" onclick="filterActivities('户外', this)">户外</div>
+      <div class="filter-tab" data-filter="派对" onclick="filterActivities('派对', this)">派对</div>
+      <div class="filter-tab" data-filter="文化交流" onclick="filterActivities('文化交流', this)">文化交流</div>
+      <div class="filter-tab" data-filter="美食" onclick="filterActivities('美食', this)">美食</div>
+      <div class="filter-tab" data-filter="水上运动" onclick="filterActivities('水上运动', this)">水上运动</div>
+    </div>
+    <div id="activityList"></div>
+  </div>
+
+  <!-- 场地页 -->
+  <div class="page" id="page-venue">
+    <div class="top-bar"><span class="neon-text" style="font-size:18px;">场地租赁</span></div>
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="搜索场地...">
+    </div>
+    <div id="venueList"></div>
+  </div>
+
+  <!-- 消息页 -->
+  <div class="page" id="page-message">
+    <div class="top-bar"><span class="neon-text" style="font-size:18px;">消息</span></div>
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="搜索会话...">
+    </div>
+    <div id="chatList"></div>
+  </div>
+
+  <!-- 我的页面 -->
+  <div class="page" id="page-me">
+    <div class="glass-card profile-card glow-border">
+      <div class="profile-avatar">TS</div>
+      <div class="profile-name neon-text">Thai Explorer</div>
+      <div class="profile-badges">
+        <span class="profile-badge credit">★ 信用分 96</span>
+        <span class="profile-badge verify">✓ 已认证</span>
+      </div>
+      <div class="profile-stats">
+        <div class="profile-stat"><div class="profile-stat-val">32</div><div class="profile-stat-label">参与活动</div></div>
+        <div class="profile-stat"><div class="profile-stat-val">128</div><div class="profile-stat-label">好友</div></div>
+        <div class="profile-stat"><div class="profile-stat-val">98%</div><div class="profile-stat-label">好评率</div></div>
+      </div>
+    </div>
+    <div class="glass-card">
+      <div class="menu-list">
+        <div class="menu-item" onclick="showToast('我的活动')"><div class="menu-item-left"><div class="menu-icon i1">📋</div><span class="menu-label">我的活动</span></div><span class="menu-arrow">›</span></div>
+        <div class="menu-item" onclick="showToast('我的订单')"><div class="menu-item-left"><div class="menu-icon i2">🛒</div><span class="menu-label">我的订单</span></div><span class="menu-arrow">›</span></div>
+        <div class="menu-item" onclick="showToast('房间交换')"><div class="menu-item-left"><div class="menu-icon i3">🏠</div><span class="menu-label">房间交换</span></div><span class="menu-arrow">›</span></div>
+        <div class="menu-item" onclick="showToast('我的场地预订')"><div class="menu-item-left"><div class="menu-icon i4">📍</div><span class="menu-label">我的场地预订</span></div><span class="menu-arrow">›</span></div>
+        <div class="menu-item" onclick="showToast('实名认证')"><div class="menu-item-left"><div class="menu-icon i5">🛡️</div><span class="menu-label">实名认证</span></div><span class="menu-arrow">›</span></div>
+        <div class="menu-item" onclick="showToast('设置')"><div class="menu-item-left"><div class="menu-icon i6">⚙️</div><span class="menu-label">设置</span></div><span class="menu-arrow">›</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部导航 -->
+  <div class="bottom-nav" id="bottomNav">
+    <div class="nav-item active" data-page="discover" onclick="switchPage('discover')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>发现</span>
+    </div>
+    <div class="nav-item" data-page="activity" onclick="switchPage('activity')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="8 14 8 14 8.01 14"/></svg>
+      <span>活动</span>
+    </div>
+    <div class="nav-item" data-page="venue" onclick="switchPage('venue')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      <span>场地</span>
+    </div>
+    <div class="nav-item" data-page="message" onclick="switchPage('message')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>消息</span>
+    </div>
+    <div class="nav-item" data-page="me" onclick="switchPage('me')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>我的</span>
+    </div>
+  </div>
+</div>
+
+<!-- 活动详情弹窗 -->
+<div class="modal-overlay" id="activityDetailModal">
+  <div class="modal-sheet" id="activityDetailSheet"></div>
+</div>
+
+<!-- 支付确认弹窗 -->
+<div class="modal-overlay" id="paymentModal">
+  <div class="modal-sheet" id="paymentSheet"></div>
+</div>
+
+<!-- 活动发布弹窗 -->
+<div class="modal-overlay" id="createActivityModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title neon-text">发布活动</div>
+    <div class="form-group"><div class="form-label">活动标题</div><input class="form-input" id="caTitle" placeholder="给你的活动起个吸引人的名字"></div>
+    <div class="form-group"><div class="form-label">活动类型</div><select class="form-select" id="caType"><option>户外</option><option>派对</option><option>文化交流</option><option>美食</option><option>水上运动</option></select></div>
+    <div class="form-group"><div class="form-label">活动时间</div><input class="form-input" id="caTime" placeholder="例如: 2026-06-15 14:00"></div>
+    <div class="form-group"><div class="form-label">活动地点</div><input class="form-input" id="caLocation" placeholder="例如: 曼谷考山路"></div>
+    <div class="form-group"><div class="form-label">费用类型</div><select class="form-select" id="caFeeType"><option>免费</option><option>AA制</option><option>固定价</option></select></div>
+    <div class="form-group"><div class="form-label">人数上限</div><input class="form-input" id="caMaxPeople" type="number" placeholder="例如: 20" value="20"></div>
+    <div style="display:flex;gap:10px;margin-top:8px;">
+      <button class="btn-outline" style="flex:1" onclick="closeCreateActivity()">取消</button>
+      <button class="btn-primary" style="flex:1" onclick="submitActivity()">发布活动</button>
+    </div>
+  </div>
+</div>
+
+<!-- 支付成功动画 -->
+<div class="success-overlay" id="successOverlay">
+  <div class="success-circle">✓</div>
+  <div class="success-text neon-text">支付成功!</div>
+</div>
+
+<!-- 浮动发布按钮 -->
+<button class="fab" id="fabBtn" onclick="openCreateActivity()" style="display:none;">+</button>
+
+<!-- 场地导航提示弹窗 -->
+<div class="modal-overlay" id="navModal">
+  <div class="modal-sheet" style="text-align:center;padding:24px;">
+    <div class="modal-handle"></div>
+    <div style="font-size:40px;margin:16px 0;">🗺️</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px;">即将跳转 Google Maps</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">将打开外部地图应用进行导航</div>
+    <button class="btn-primary" onclick="closeNavModal()">知道了</button>
+  </div>
+</div>
+
+<script>
+// ============ 数据 ============
+const cities = ['曼谷', '清迈', '普吉', '芭提雅'];
+let currentCity = '曼谷';
+let currentPage = 'discover';
+
+const activities = [
+  { id:1, type:'户外', title:'清迈素贴山徒步探险', host:'Mountain Guide', date:'6月15日 08:00', location:'清迈素贴山国家公园', fee:'免费', price:'免费', max:20, enrolled:18, cover:'', desc:'从素贴山脚出发，途经瀑布和丛林小径，全程约6公里。适合初级到中级徒步爱好者。向导会沿途介绍当地植物和野生动物。请穿运动鞋，自带饮用水。集合点：素贴山停车场。', participants:['MG','TK','AL','JS','RY','MP','CN','WD'] },
+  { id:2, type:'派对', title:'曼谷屋顶泳池电音派对', host:'BKK Party Crew', date:'6月20日 20:00', location:'曼谷素坤逸路Soi 11', fee:'AA', price:'500 ฿', max:50, enrolled:42, cover:'', desc:'在曼谷最热门的屋顶泳池酒吧举办的电音派对！DJ阵容强大，提供免费欢迎饮品。请着泳装+外套，毛巾自备。21:00开始泳池开放。', participants:['BK','DJ','NM','PL','SW'] },
+  { id:3, type:'文化交流', title:'泰语角 - 语言交换之夜', host:'Language Lover', date:'6月18日 19:00', location:'清迈古城塔佩门咖啡馆', fee:'免费', price:'免费', max:30, enrolled:25, cover:'', desc:'每周三晚的语言交换活动，泰国本地人和外国人一起练习语言。提供免费小吃和饮品。欢迎所有水平的泰语学习者和想练习英语/中文的泰国朋友。', participants:['LL','TC','CN','JP','KR'] },
+  { id:4, type:'美食', title:'曼谷街头美食之旅', host:'Foodie Thailand', date:'6月22日 17:30', location:'曼谷唐人街耀华力路', fee:'AA', price:'300 ฿', max:15, enrolled:14, cover:'', desc:'跟随本地美食达人探索曼谷唐人街最地道的美食摊位。从泰式炒河粉到芒果糯米饭，从烤鱿鱼到椰子冰淇淋，一次吃遍所有经典。费用AA，预估人均300铢。', participants:['FT','YM','GR','MK'] },
+  { id:5, type:'水上运动', title:'普吉岛浮潜一日游', host:'Phuket Dive Center', date:'6月25日 07:30', location:'普吉岛查龙码头', fee:'固定价', price:'1800 ฿', max:12, enrolled:9, cover:'', desc:'前往皮皮岛和玛雅湾浮潜，包含装备租赁、午餐和往返交通。能看到丰富的珊瑚礁和热带鱼群。请自带防晒霜和泳衣。', participants:['PD','SN','DV','FL'] },
+  { id:6, type:'户外', title:'芭提雅海岛骑行', host:'Cycle Pattaya', date:'6月16日 09:00', location:'芭提雅海滩路', fee:'固定价', price:'400 ฿', max:25, enrolled:16, cover:'', desc:'沿海岸线骑行30公里，途经芭提雅各大景点。提供自行车和头盔，适合所有骑行水平。中途有休息点和拍照打卡点。', participants:['CP','BR','CK'] },
+  { id:7, type:'派对', title:'清迈丛林荧光派对', host:'Jungle Vibes', date:'6月28日 21:00', location:'清迈湄林区', fee:'固定价', price:'600 ฿', max:40, enrolled:35, cover:'', desc:'在丛林深处的露天场地举办荧光主题派对！现场有火焰表演、荧光彩绘、特色鸡尾酒。提供往返接驳车。', participants:['JV','FM','GL','WT'] },
+  { id:8, type:'文化交流', title:'泰国传统水灯制作体验', host:'Artisan Thai', date:'6月17日 14:00', location:'曼谷郑王庙附近工作室', fee:'AA', price:'200 ฿', max:20, enrolled:19, cover:'', desc:'学习制作传统泰国水灯(Krathong)，了解背后的文化和意义。材料全部提供，成品可以带回家或在河边放灯。', participants:['AT','CW','HL'] },
+];
+
+const venues = [
+  { id:1, name:'The Glass Villa', type:'别墅', capacity:'20-50人', price:'2500 ฿/小时', location:'曼谷通罗区', cover:'' },
+  { id:2, name:'Cozy Corner Cafe', type:'咖啡馆', capacity:'10-25人', price:'800 ฿/小时', location:'清迈宁曼路', cover:'' },
+  { id:3, name:'Backpacker Common Room', type:'青旅公区', capacity:'15-40人', price:'500 ฿/小时', location:'曼谷考山路', cover:'' },
+  { id:4, name:'Sunset Beach Club', type:'海滩', capacity:'30-100人', price:'5000 ฿/小时', location:'普吉岛卡塔海滩', cover:'' },
+  { id:5, name:'The Boardroom', type:'会议室', capacity:'8-20人', price:'1200 ฿/小时', location:'曼谷是隆路', cover:'' },
+  { id:6, name:'Riverside Terrace', type:'别墅', capacity:'15-35人', price:'3200 ฿/小时', location:'芭提雅中天海滩', cover:'' },
+];
+
+const chats = [
+  { id:1, name:'BKK Party Crew', preview:'今晚活动别忘了带泳衣哦~', time:'14:22', badge:3, isGroup:true, avatar:'BK' },
+  { id:2, name:'Mountain Guide', preview:'收到，明天见！', time:'12:05', badge:0, isGroup:false, avatar:'MG' },
+  { id:3, name:'清迈语言交换群', preview:'有人想练习中文吗？', time:'09:30', badge:12, isGroup:true, avatar:'LL' },
+  { id:4, name:'Foodie泰国美食', preview:'推荐了一家超棒的船面', time:'昨天', badge:0, isGroup:true, avatar:'FT' },
+  { id:5, name:'Phuket Dive Center', preview:'请确认你的潜水装备尺寸', time:'昨天', badge:1, isGroup:false, avatar:'PD' },
+  { id:6, name:'Thai Explorer', preview:'照片拍得太好了！👍', time:'周三', badge:0, isGroup:false, avatar:'TE' },
+  { id:7, name:'芭提雅骑行俱乐部', preview:'周末骑行计划已更新', time:'周一', badge:5, isGroup:true, avatar:'CP' },
+];
+
+const feedPosts = [
+  { id:1, user:'Thai Explorer', avatar:'TE', time:'2小时前', content:'今天在清迈古城发现了一家超棒的咖啡馆，老板是位退休的泰拳教练，咖啡拉花技术一流！推荐给所有数字游民朋友~', image:true, likes:128, comments:23, hasRecruit:false },
+  { id:2, user:'Mountain Guide', avatar:'MG', time:'3小时前', content:'本周末素贴山徒步还有最后2个名额！想去的朋友抓紧报名。清晨出发可以看到最美的日出云海。', image:true, likes:89, comments:15, hasRecruit:true, recruitActivityId:1 },
+  { id:3, user:'Foodie Thailand', avatar:'FT', time:'5小时前', content:'曼谷唐人街美食之旅明天出发！目前14/15人，最后一个名额速抢！附上上次活动的美食图，看了别流口水~', image:true, likes:210, comments:45, hasRecruit:true, recruitActivityId:4 },
+  { id:4, user:'BKK Party Crew', avatar:'BK', time:'6小时前', content:'上周末屋顶泳池派对的精彩瞬间！感谢每一位参与的朋友，下次活动已经在筹备中，敬请期待更大的场地和更炸的DJ阵容！', image:true, likes:356, comments:78, hasRecruit:false },
+  { id:5, user:'Phuket Dive Center', avatar:'PD', time:'8小时前', content:'昨天皮皮岛浮潜拍到的海龟！水质超清，能见度30米以上。6月25日还有一期，目前9/12人，想去的私我~', image:true, likes:178, comments:32, hasRecruit:true, recruitActivityId:5 },
+];
+
+// ============ 粒子背景 ============
+const canvas = document.getElementById('particleCanvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
+let animId;
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+class Particle {
+  constructor() { this.reset(); this.y = Math.random() * canvas.height; }
+  reset() {
+    this.x = Math.random() * canvas.width;
+    this.y = -10;
+    this.size = Math.random() * 2 + 0.5;
+    this.speed = Math.random() * 0.5 + 0.1;
+    this.opacity = Math.random() * 0.5 + 0.1;
+    this.hue = Math.random() < 0.5 ? 240 + Math.random() * 30 : 280 + Math.random() * 30;
+  }
+  update() {
+    this.y += this.speed;
+    if (this.y > canvas.height + 10) this.reset();
+  }
+  draw() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${this.hue}, 70%, 65%, ${this.opacity})`;
+    ctx.fill();
+  }
+}
+
+function initParticles() {
+  particles = [];
+  const count = Math.min(80, Math.floor(canvas.width / 8));
+  for (let i = 0; i < count; i++) { particles.push(new Particle()); }
+}
+initParticles();
+window.addEventListener('resize', initParticles);
+
+function animate() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles.forEach(p => { p.update(); p.draw(); });
+  // 连线
+  for (let i = 0; i < particles.length; i++) {
+    for (let j = i + 1; j < particles.length; j++) {
+      const dx = particles[i].x - particles[j].x;
+      const dy = particles[i].y - particles[j].y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 100) {
+        ctx.beginPath();
+        ctx.moveTo(particles[i].x, particles[i].y);
+        ctx.lineTo(particles[j].x, particles[j].y);
+        ctx.strokeStyle = `rgba(139, 92, 246, ${0.06 * (1 - dist / 100)})`;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+    }
+  }
+  animId = requestAnimationFrame(animate);
+}
+animate();
+
+// ============ Toast ============
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+// ============ 城市切换 ============
+function toggleCityDropdown() {
+  document.getElementById('cityDropdown').classList.toggle('show');
+}
+function selectCity(city) {
+  currentCity = city;
+  document.getElementById('currentCity').textContent = city;
+  document.getElementById('cityDropdown').classList.remove('show');
+  renderFeed();
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#citySelector')) {
+    document.getElementById('cityDropdown').classList.remove('show');
+  }
+});
+
+// ============ 页面切换 ============
+function switchPage(page) {
+  currentPage = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
+
+  // FAB
+  const fab = document.getElementById('fabBtn');
+  fab.style.display = (page === 'activity') ? 'flex' : 'none';
+
+  // 关闭弹窗
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show'));
+  document.getElementById('successOverlay').classList.remove('show');
+}
+
+// ============ 渲染发现页 ============
+function renderFeed() {
+  const container = document.getElementById('feedContainer');
+  let html = '';
+  feedPosts.forEach(post => {
+    html += `
+    <div class="glass-card feed-card">
+      <div class="feed-header">
+        <div class="feed-avatar">${post.avatar}</div>
+        <div class="feed-user-info">
+          <div class="feed-nickname">${post.user}</div>
+          <div class="feed-time">${post.time} · ${currentCity}</div>
+        </div>
+        <span style="font-size:12px;color:var(--text-muted);">···</span>
+      </div>
+      <div class="feed-content">${post.content}</div>
+      ${post.image ? `<div class="feed-image" style="background:linear-gradient(135deg, ${getRandomGradient()});display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.3);font-size:13px;">📷 ${post.user} 的图片</div>` : ''}
+      ${post.hasRecruit ? renderRecruitCard(post.recruitActivityId) : ''}
+      <div class="feed-actions">
+        <div class="feed-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>${post.likes}</div>
+        <div class="feed-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>${post.comments}</div>
+        <div class="feed-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>分享</div>
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function getRandomGradient() {
+  const g = [['#1e1b4b,#312e81'], ['#0f172a,#1e293b'], ['#1a0a2e,#2d1b69'], ['#0c1929,#1a365d']];
+  return g[Math.floor(Math.random() * g.length)];
+}
+
+function renderRecruitCard(activityId) {
+  const a = activities.find(act => act.id === activityId);
+  if (!a) return '';
+  return `
+  <div class="recruit-card">
+    <div class="recruit-cover" style="background:linear-gradient(135deg,${getRandomGradient()});display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.3);font-size:13px;">🎯 ${a.title}</div>
+    <div class="recruit-title">${a.title}</div>
+    <div class="recruit-meta">
+      <span>📅 ${a.date}</span><span>📍 ${a.location}</span><span>💰 ${a.price}</span>
+    </div>
+    <div class="recruit-footer">
+      <span class="recruit-people">🔥 已报名 ${a.enrolled}/${a.max} 人</span>
+      <button class="btn-primary btn-sm" onclick="event.stopPropagation();openPayment(${a.id})">立即报名</button>
+    </div>
+  </div>`;
+}
+
+// ============ 渲染活动列表 ============
+function renderActivities(filter) {
+  const container = document.getElementById('activityList');
+  const filtered = filter && filter !== '全部' ? activities.filter(a => a.type === filter) : activities;
+  let html = '';
+  filtered.forEach(a => {
+    html += `
+    <div class="glass-card activity-card" onclick="openActivityDetail(${a.id})">
+      <div class="activity-cover" style="background:linear-gradient(135deg,${getRandomGradient()});display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.2);font-size:24px;">${a.type === '户外' ? '🏔️' : a.type === '派对' ? '🎉' : a.type === '文化交流' ? '🎭' : a.type === '美食' ? '🍜' : '🏄'}</div>
+      <div class="activity-info">
+        <div class="activity-title">${a.title}</div>
+        <div class="activity-host"><div class="activity-host-avatar">${a.host.charAt(0)}</div>${a.host}</div>
+        <div class="activity-detail"><span>📅 ${a.date}</span><span>📍 ${a.location}</span></div>
+        <div class="activity-bottom">
+          <span class="activity-price">${a.price}</span>
+          <span class="activity-slots">${a.enrolled}/${a.max}人</span>
+        </div>
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function filterActivities(filter, el) {
+  document.querySelectorAll('#activityFilters .filter-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderActivities(filter);
+}
+
+// ============ 活动详情弹窗 ============
+function openActivityDetail(id) {
+  const a = activities.find(act => act.id === id);
+  if (!a) return;
+  const sheet = document.getElementById('activityDetailSheet');
+  sheet.innerHTML = `
+    <div class="modal-handle"></div>
+    <div class="detail-cover" style="background:linear-gradient(135deg,${getRandomGradient()});display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.2);font-size:32px;">${a.type === '户外' ? '🏔️' : a.type === '派对' ? '🎉' : a.type === '文化交流' ? '🎭' : a.type === '美食' ? '🍜' : '🏄'}</div>
+    <div style="font-size:18px;font-weight:700;">${a.title}</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">发起人: ${a.host}</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--text-secondary);">
+      <span>📅 ${a.date}</span><span>📍 ${a.location}</span><span>💰 ${a.price}</span>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">活动描述</div>
+      <div style="font-size:13px;line-height:1.7;color:var(--text-secondary);">${a.desc}</div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">集合点示意</div>
+      <div class="map-placeholder">📍 ${a.location}<br><span style="font-size:11px;">Google Maps 示意区域</span></div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">已报名参与者 (${a.enrolled}/${a.max})</div>
+      <div class="participant-avatars">
+        ${a.participants.map(p => `<div class="participant-avatar">${p}</div>`).join('')}
+      </div>
+    </div>
+    <div style="margin-top:20px;">
+      <button class="btn-gold" style="width:100%;padding:14px;" onclick="openPayment(${a.id})">立即报名 - ${a.price}</button>
+    </div>
+    <button class="btn-outline" style="width:100%;margin-top:10px;" onclick="closeActivityDetail()">关闭</button>
+  `;
+  document.getElementById('activityDetailModal').classList.add('show');
+}
+function closeActivityDetail() {
+  document.getElementById('activityDetailModal').classList.remove('show');
+}
+
+// ============ 支付流程 ============
+let currentPaymentActivityId = null;
+let selectedPaymentMethod = null;
+
+function openPayment(activityId) {
+  currentPaymentActivityId = activityId;
+  selectedPaymentMethod = null;
+  const a = activities.find(act => act.id === activityId);
+  const sheet = document.getElementById('paymentSheet');
+  sheet.innerHTML = `
+    <div class="modal-handle"></div>
+    <div class="modal-title neon-text">确认支付</div>
+    <div style="font-size:14px;margin-bottom:16px;color:var(--text-secondary);">${a ? a.title : ''} - ${a ? a.price : ''}</div>
+    <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:10px;">选择支付方式</div>
+    <div class="payment-option" onclick="selectPayment('promptpay', this)">
+      <div class="payment-icon promptpay">PP</div>
+      <div><div style="font-weight:600;font-size:14px;">PromptPay</div><div style="font-size:11px;color:var(--text-muted);">泰国即时支付</div></div>
+    </div>
+    <div class="payment-option" onclick="selectPayment('truemoney', this)">
+      <div class="payment-icon truemoney">TM</div>
+      <div><div style="font-weight:600;font-size:14px;">TrueMoney</div><div style="font-size:11px;color:var(--text-muted);">泰国电子钱包</div></div>
+    </div>
+    <div class="payment-option" onclick="selectPayment('visa', this)">
+      <div class="payment-icon visa">V</div>
+      <div><div style="font-weight:600;font-size:14px;">Visa</div><div style="font-size:11px;color:var(--text-muted);">国际信用卡</div></div>
+    </div>
+    <div class="payment-option" onclick="selectPayment('alipay', this)">
+      <div class="payment-icon alipay">支</div>
+      <div><div style="font-weight:600;font-size:14px;">支付宝</div><div style="font-size:11px;color:var(--text-muted);">跨境支付</div></div>
+    </div>
+    <button class="btn-gold" style="width:100%;margin-top:16px;padding:14px;" id="confirmPayBtn" disabled onclick="confirmPayment()">确认支付</button>
+    <button class="btn-outline" style="width:100%;margin-top:8px;" onclick="closePayment()">取消</button>
+  `;
+  document.getElementById('paymentModal').classList.add('show');
+  // 关闭活动详情弹窗（如果开着）
+  document.getElementById('activityDetailModal').classList.remove('show');
+}
+
+function selectPayment(method, el) {
+  selectedPaymentMethod = method;
+  document.querySelectorAll('#paymentSheet .payment-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('confirmPayBtn').disabled = false;
+}
+
+function confirmPayment() {
+  if (!selectedPaymentMethod) return;
+  document.getElementById('paymentModal').classList.remove('show');
+  document.getElementById('successOverlay').classList.add('show');
+  // 更新报名人数
+  if (currentPaymentActivityId) {
+    const a = activities.find(act => act.id === currentPaymentActivityId);
+    if (a && a.enrolled < a.max) a.enrolled++;
+  }
+  setTimeout(() => {
+    document.getElementById('successOverlay').classList.remove('show');
+    renderFeed();
+    renderActivities(document.querySelector('#activityFilters .filter-tab.active')?.dataset?.filter || '全部');
+  }, 1800);
+}
+
+function closePayment() {
+  document.getElementById('paymentModal').classList.remove('show');
+}
+
+// ============ 渲染场地 ============
+function renderVenues() {
+  const container = document.getElementById('venueList');
+  let html = '';
+  venues.forEach(v => {
+    html += `
+    <div class="glass-card venue-card">
+      <div class="venue-image" style="background:linear-gradient(135deg,${getRandomGradient()});display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.2);font-size:32px;">${v.type === '别墅' ? '🏡' : v.type === '咖啡馆' ? '☕' : v.type === '青旅公区' ? '🏠' : v.type === '海滩' ? '🏖️' : '🏢'}</div>
+      <div class="venue-header">
+        <span class="venue-name">${v.name}</span>
+        <span class="venue-tag">${v.type}</span>
+      </div>
+      <div class="venue-meta">
+        <span>👥 ${v.capacity}</span><span>📍 ${v.location}</span>
+      </div>
+      <div style="font-weight:700;font-size:16px;margin-bottom:12px;background:linear-gradient(135deg,var(--neon-orange),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">${v.price}</div>
+      <div class="venue-actions">
+        <button class="btn-outline btn-sm" style="flex:1;" onclick="openNavModal()">🗺️ 导航</button>
+        <button class="btn-primary btn-sm" style="flex:1;" onclick="showToast('预约请求已发送')">📅 预约</button>
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function openNavModal() {
+  document.getElementById('navModal').classList.add('show');
+}
+function closeNavModal() {
+  document.getElementById('navModal').classList.remove('show');
+}
+
+// ============ 渲染消息 ============
+function renderChats() {
+  const container = document.getElementById('chatList');
+  let html = '';
+  chats.forEach(c => {
+    html += `
+    <div class="glass-card chat-item" onclick="showToast('打开与 ${c.name} 的对话')">
+      <div class="chat-avatar ${c.isGroup ? 'group' : ''}">${c.avatar}</div>
+      <div class="chat-info">
+        <div class="chat-name">${c.name} ${c.isGroup ? '<span style="font-size:10px;color:var(--neon-orange);">群聊</span>' : ''}</div>
+        <div class="chat-preview">${c.preview}</div>
+      </div>
+      <div class="chat-meta">
+        <div class="chat-time">${c.time}</div>
+        ${c.badge > 0 ? `<div class="chat-badge">${c.badge}</div>` : ''}
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+// ============ 活动发布弹窗 ============
+function openCreateActivity() {
+  document.getElementById('createActivityModal').classList.add('show');
+}
+function closeCreateActivity() {
+  document.getElementById('createActivityModal').classList.remove('show');
+}
+function submitActivity() {
+  const title = document.getElementById('caTitle').value.trim();
+  if (!title) { showToast('请输入活动标题'); return; }
+  const type = document.getElementById('caType').value;
+  const time = document.getElementById('caTime').value.trim() || '待定';
+  const loc = document.getElementById('caLocation').value.trim() || '待定';
+  const feeType = document.getElementById('caFeeType').value;
+  const maxPeople = parseInt(document.getElementById('caMaxPeople').value) || 20;
+  const newId = activities.length + 1;
+  const priceStr = feeType === '免费' ? '免费' : feeType === 'AA制' ? 'AA' : '待定';
+  activities.push({
+    id: newId, type, title, host:'Thai Explorer', date:time, location:loc,
+    fee:feeType, price:priceStr, max:maxPeople, enrolled:0,
+    desc:'新发布的活动，等待大家报名参与！', participants:[]
+  });
+  closeCreateActivity();
+  showToast('活动发布成功!');
+  renderActivities(document.querySelector('#activityFilters .filter-tab.active')?.dataset?.filter || '全部');
+  // 清空表单
+  document.getElementById('caTitle').value = '';
+  document.getElementById('caTime').value = '';
+  document.getElementById('caLocation').value = '';
+}
+
+// ============ 初始化 ============
+function init() {
+  renderFeed();
+  renderActivities('全部');
+  renderVenues();
+  renderChats();
+}
+init();
+
+// ============ 点击弹窗遮罩关闭 ============
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('show');
+  });
+});
+
+// ============ 页面点击空白关闭城市下拉 ============
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#citySelector') && !e.target.closest('#cityDropdown')) {
+    document.getElementById('cityDropdown').classList.remove('show');
+  }
+});
+</script>
+</body>
+</html>
