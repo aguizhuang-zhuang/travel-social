@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ThaiGo - 消息</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+.msg-group-avatar { width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0; }
+</style>
+</head>
+<body>
+<canvas id="particles-canvas"></canvas>
+<div class="app-container">
+  <div class="top-nav"><span class="nav-title">消息</span></div>
+  <div class="page-content">
+    <input class="input-glass" type="text" placeholder="🔍 搜索聊天..." style="margin-bottom:12px;">
+  </div>
+  <div class="page-content" style="padding-top:0;" id="msgList"></div>
+</div>
+<nav class="bottom-tab">
+  <a class="tab-item" href="index.html"><span class="tab-icon">🧭</span><span class="tab-label">发现</span></a>
+  <a class="tab-item" href="event.html"><span class="tab-icon">📅</span><span class="tab-label">活动</span></a>
+  <a class="tab-item" href="venue.html"><span class="tab-icon">📍</span><span class="tab-label">场地</span></a>
+  <a class="tab-item active" href="messages.html"><span class="tab-icon">💬</span><span class="tab-label">消息</span></a>
+  <a class="tab-item" href="profile.html"><span class="tab-icon">👤</span><span class="tab-label">我的</span></a>
+</nav>
+
+<script>
+var chats=[
+  {name:'曼谷骑行小队',last:'明天几点集合？在伦披尼公园门口见！',time:'10:32',unread:3,group:true,color:'linear-gradient(135deg,#06b6d4,#3b82f6)',icon:'🚴'},
+  {name:'Sophia',last:'好的，那周六早上见！记得带瑜伽垫～',time:'09:15',unread:1,group:false,color:'#a855f7',letter:'S'},
+  {name:'普吉满月派对群',last:'Akira: 已订好场地，大家晚上8点来！',time:'昨天',unread:12,group:true,color:'linear-gradient(135deg,#ec4899,#f59e0b)',icon:'🌕'},
+  {name:'Liam',last:'那张照片拍得太好了！可以发给我吗？',time:'昨天',unread:0,group:false,color:'#06b6d4',letter:'L'},
+  {name:'场地预约确认',last:'您的曼谷暹罗别墅预约已确认',time:'周一',unread:0,group:false,color:'#10b981',letter:'✓'},
+  {name:'清迈美食探索群',last:'Nong: 今晚夜市集合，已经8个人了！',time:'周日',unread:5,group:true,color:'linear-gradient(135deg,#f59e0b,#ef4444)',icon:'🍜'},
+  {name:'Akira',last:'没问题，到时候见！',time:'6月5日',unread:0,group:false,color:'#ec4899',letter:'A'},
+];
+
+(function(){
+  var h='';
+  chats.forEach(function(c){
+    h+='<div class="message-item" onclick="location.href=\'chat.html\'"><div class="msg-group-avatar" style="background:'+c.color+';">'+(c.group?c.icon:c.letter)+'</div>'+
+    '<div class="msg-content"><div style="display:flex;align-items:center;gap:6px;"><span class="msg-name">'+c.name+'</span>'+
+    (c.group?'<span class="tag tag-purple" style="font-size:10px;">群聊</span>':'')+'</div>'+
+    '<div class="msg-preview">'+c.last+'</div></div>'+
+    '<div style="text-align:right;flex-shrink:0;"><div class="msg-time">'+c.time+'</div>'+
+    (c.unread>0?'<div style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;border-radius:9px;background:var(--neon-pink);color:#fff;font-size:10px;padding:0 5px;margin-top:2px;">'+c.unread+'</div>':'')+'</div></div>';
+  });
+  document.getElementById('msgList').innerHTML=h;
+})();
+
+(function(){
+var c=document.getElementById('particles-canvas'),ctx=c.getContext('2d'),w,h,ps=[];
+function R(){w=c.width=innerWidth;h=c.height=innerHeight;}R();addEventListener('resize',R);
+for(var i=0;i<60;i++)ps.push({x:Math.random()*w,y:Math.random()*h,vx:(Math.random()-.5)*.6,vy:(Math.random()-.5)*.6,r:Math.random()*1.5+.5});
+(function D(){ctx.clearRect(0,0,w,h);for(var i=0;i<ps.length;i++){var p=ps[i];p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=w;if(p.x>w)p.x=0;if(p.y<0)p.y=h;if(p.y>h)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(6,182,212,0.4)';ctx.fill();for(var j=i+1;j<ps.length;j++){var q=ps[j],dx=p.x-q.x,dy=p.y-q.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<100){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba(6,182,212,'+(.15*(1-dist/100))+')';ctx.stroke();}}}requestAnimationFrame(D);})();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ThaiGo - 房间</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+.tab-switch { display:flex;gap:0;background:var(--bg-glass);border-radius:var(--radius-full);padding:3px;margin-bottom:12px; }
+.tab-switch button { flex:1;padding:8px 0;border-radius:var(--radius-full);background:transparent;color:var(--text-secondary);font-size:14px;font-weight:500;transition:.2s; }
+.tab-switch button.active { background:var(--gradient-btn);color:#fff; }
+.room-card { display:flex;background:var(--bg-card);border:1px solid var(--border-glass);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:12px;cursor:pointer;transition:.3s; }
+.room-card:active { transform:scale(.98); }
+.room-card .cover { width:110px;min-height:110px;display:flex;align-items:center;justify-content:center;font-size:40px;flex-shrink:0; }
+.room-card .info { padding:10px 12px;flex:1;display:flex;flex-direction:column;justify-content:space-between; }
+.date-picker-row { display:flex;gap:8px; }
+.date-picker-row input { flex:1; }
+</style>
+</head>
+<body>
+<canvas id="particles-canvas"></canvas>
+<div class="app-container">
+  <div class="top-nav">
+    <a class="back-btn" href="index.html">←</a>
+    <span class="nav-title">房间预订</span>
+  </div>
+  <div class="page-content">
+    <div class="tab-switch" id="roomTab">
+      <button class="active" data-tab="book">预订</button>
+      <button data-tab="swap">交换</button>
+    </div>
+    <div class="date-picker-row" style="margin-bottom:12px;">
+      <input class="input-glass" type="date" id="checkIn" value="2026-06-09" style="flex:1;">
+      <input class="input-glass" type="date" id="checkOut" value="2026-06-11" style="flex:1;">
+    </div>
+    <input class="input-glass" type="text" placeholder="🔍 搜索房型..." style="margin-bottom:12px;">
+    <div id="roomList"></div>
+  </div>
+</div>
+<nav class="bottom-tab">
+  <a class="tab-item" href="index.html"><span class="tab-icon">🧭</span><span class="tab-label">发现</span></a>
+  <a class="tab-item" href="event.html"><span class="tab-icon">📅</span><span class="tab-label">活动</span></a>
+  <a class="tab-item" href="venue.html"><span class="tab-icon">📍</span><span class="tab-label">场地</span></a>
+  <a class="tab-item active" href="messages.html"><span class="tab-icon">💬</span><span class="tab-label">消息</span></a>
+  <a class="tab-item" href="profile.html"><span class="tab-icon">👤</span><span class="tab-label">我的</span></a>
+</nav>
+
+<script>
+var bookRooms=[
+  {id:1,name:'标准双人间',img:'linear-gradient(135deg,#06b6d4,#3b82f6)',icon:'🛏️',price:'800฿',capacity:2,tags:['空调','WiFi','含早'],loc:'曼谷·素坤逸'},
+  {id:2,name:'豪华海景房',img:'linear-gradient(135deg,#f59e0b,#ef4444)',icon:'🌊',price:'2,500฿',capacity:2,tags:['海景','阳台','浴缸'],loc:'普吉·芭东'},
+  {id:3,name:'青旅床位',img:'linear-gradient(135deg,#10b981,#06b6d4)',icon:'🛌',price:'250฿',capacity:1,tags:['共享卫浴','储物柜','社交区'],loc:'清迈·古城'},
+];
+var swapRooms=[
+  {id:4,name:'清迈公寓单间',img:'linear-gradient(135deg,#a855f7,#ec4899)',icon:'🏠',price:'交换',capacity:2,tags:['月租','厨房','阳台'],loc:'清迈·宁曼路'},
+  {id:5,name:'曼谷公寓套房',img:'linear-gradient(135deg,#3b82f6,#a855f7)',icon:'🏢',price:'交换',capacity:2,tags:['泳池','健身房','近BTS'],loc:'曼谷·Asoke'},
+];
+
+var currentTab='book';
+function renderRooms(){
+  var rooms=currentTab==='book'?bookRooms:swapRooms;
+  var h='';
+  rooms.forEach(function(r){
+    h+='<div class="room-card" onclick="location.href=\'room-detail.html\'"><div class="cover" style="background:'+r.img+';">'+r.icon+'</div>'+
+    '<div class="info"><div><div style="font-weight:600;">'+r.name+'</div><div style="font-size:11px;color:var(--text-muted);">'+r.loc+' · 👤 '+r.capacity+'人</div>'+
+    '<div style="display:flex;gap:4px;margin-top:4px;">'+r.tags.map(function(t){return '<span class="tag tag-purple">'+t+'</span>'}).join('')+'</div></div>'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-weight:700;color:'+(r.price==='交换'?'var(--neon-pink)':'var(--neon-green)')+';">'+r.price+(r.price!=='交换'?'<span style="font-size:11px;color:var(--text-muted);">/晚</span>':'')+'</span>'+
+    '<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();showToast(\''+(currentTab==='book'?'已发起预订！':'已发起交换请求！')+'\')">'+ (currentTab==='book'?'预订':'交换')+'</button></div></div></div>';
+  });
+  document.getElementById('roomList').innerHTML=h;
+}
+renderRooms();
+document.querySelectorAll('#roomTab button').forEach(function(b){b.addEventListener('click',function(){
+  document.querySelectorAll('#roomTab button').forEach(function(x){x.classList.remove('active')});
+  b.classList.add('active');currentTab=b.dataset.tab;renderRooms();
+})});
+
+(function(){
+var c=document.getElementById('particles-canvas'),ctx=c.getContext('2d'),w,h,ps=[];
+function R(){w=c.width=innerWidth;h=c.height=innerHeight;}R();addEventListener('resize',R);
+for(var i=0;i<60;i++)ps.push({x:Math.random()*w,y:Math.random()*h,vx:(Math.random()-.5)*.6,vy:(Math.random()-.5)*.6,r:Math.random()*1.5+.5});
+(function D(){ctx.clearRect(0,0,w,h);for(var i=0;i<ps.length;i++){var p=ps[i];p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=w;if(p.x>w)p.x=0;if(p.y<0)p.y=h;if(p.y>h)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(6,182,212,0.4)';ctx.fill();for(var j=i+1;j<ps.length;j++){var q=ps[j],dx=p.x-q.x,dy=p.y-q.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<100){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba(6,182,212,'+(.15*(1-dist/100))+')';ctx.stroke();}}}requestAnimationFrame(D);})();
+})();
+function showToast(msg){var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove()},2000);}
+</script>
+</body>
+</html>
