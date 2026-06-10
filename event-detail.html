@@ -148,10 +148,12 @@ function authHeaders() {
   const t = getToken();
   return t ? { 'Authorization': 'Bearer ' + t } : {};
 }
+const API_BASE = 'https://travel-social-backend-production.up.railway.app';
 function apiFetch(url, options) {
   options = options || {};
   options.headers = Object.assign(authHeaders(), options.headers || {});
-  return fetch(url, options).then(function(res) {
+  const fullUrl = url.startsWith('http') ? url : API_BASE + url;
+  return fetch(fullUrl, options).then(function(res) {
     if (res.status === 401) {
       showToast('请先登录');
       if (typeof openLoginModal === 'function') openLoginModal();
