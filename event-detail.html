@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>ThaiGo - 活动详情</title>
 <link rel="stylesheet" href="styles.css">
+<!-- Airwallex Elements SDK（从 CDN 加载） -->
+<script src="https://checkout.airwallex.com/assets/elements.bundle.min.js"></script>
 <style>
 .cover-hero { height: 240px; background: linear-gradient(135deg,#10b981,#06b6d4); display:flex; align-items:center; justify-content:center; font-size:72px; }
 .detail-section { padding: 16px; }
@@ -18,6 +20,57 @@
 .ripple { position: relative; overflow: hidden; }
 .ripple::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle, rgba(255,255,255,0.3) 10%, transparent 70%); opacity: 0; transition: opacity 0.4s; }
 .ripple:active::after { opacity: 1; transition: opacity 0s; }
+
+/* ===== Airwallex 支付弹窗样式 ===== */
+#airwallex-payment-element {
+  margin-top: 16px;
+  min-height: 200px;
+}
+.pay-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-glass);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-glass);
+}
+.pay-option:hover { border-color: var(--neon-cyan); }
+.pay-option.selected { border-color: var(--neon-cyan); background: rgba(6,182,212,0.1); }
+.pay-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+#paySheet { max-height: 80vh; overflow-y: auto; }
+#paySheet h3 { font-size: 16px; font-weight: 600; }
+.btn-full { width: 100%; }
+.btn-primary.btn-full { margin-top: 12px; }
+.payment-methods { margin-bottom: 12px; }
+.airwallex-loading {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.airwallex-error {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 8px;
+}
 </style>
 </head>
 <body>
@@ -89,34 +142,318 @@
 </div>
 
 <script>
+// ============ API Helpers ============
+function getToken() { return localStorage.getItem('jwt_token') || ''; }
+function authHeaders() {
+  const t = getToken();
+  return t ? { 'Authorization': 'Bearer ' + t } : {};
+}
+function apiFetch(url, options) {
+  options = options || {};
+  options.headers = Object.assign(authHeaders(), options.headers || {});
+  return fetch(url, options).then(function(res) {
+    if (res.status === 401) {
+      showToast('请先登录');
+      if (typeof openLoginModal === 'function') openLoginModal();
+      throw new Error('未登录');
+    }
+    return res.json();
+  });
+}
+
+// ============ Load Event Detail ============
+var currentEvent = null;
+var eventId = null;
+
+function getEventId() {
+  var params = new URLSearchParams(window.location.search);
+  return params.get('id') || 1; // 默认 1（演示用）
+}
+
+function loadEventDetail() {
+  eventId = getEventId();
+  apiFetch('/api/events/' + eventId)
+    .then(function(data) {
+      currentEvent = data.event || data;
+      renderEventDetail(currentEvent);
+    })
+    .catch(function(err) {
+      console.error('加载活动详情失败', err);
+      if (err.message !== '未登录') showToast('加载活动详情失败');
+    });
+}
+
+function renderEventDetail(e) {
+  if (!e) return;
+  // 更新页面标题
+  document.title = (e.title || '活动详情') + ' - ThaiGo';
+  // 封面
+  var coverEl = document.querySelector('.cover-hero');
+  if (coverEl) {
+    coverEl.style.background = e.cover || 'linear-gradient(135deg,#10b981,#06b6d4)';
+    coverEl.textContent = e.icon || '📅';
+  }
+  // 标题
+  var titleEl = document.querySelector('h2');
+  if (titleEl) titleEl.textContent = e.title || '无标题';
+  // 主办方
+  var hostName = e.host_name || e.organizer || '未知';
+  var hostColor = e.host_color || '#a855f7';
+  var hostInitial = (e.host_initial || hostName.charAt(0));
+  var hostImg = document.querySelector('.detail-section .avatar');
+  if (hostImg) {
+    hostImg.src = 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">' +
+      '<rect fill="' + hostColor + '" width="32" height="32" rx="16"/>' +
+      '<text x="16" y="21" text-anchor="middle" fill="white" font-size="14">' + hostInitial + '</text></svg>'
+    );
+  }
+  var hostNameEl = document.querySelector('.detail-section > div > span');
+  if (hostNameEl) hostNameEl.textContent = hostName + ' 发起';
+  // 信息行
+  var infoRows = document.querySelectorAll('.info-row');
+  if (infoRows[0]) infoRows[0].innerHTML = '<span class="label">📅 时间</span><span>' + (e.start_time || e.date || '') + '</span>';
+  if (infoRows[1]) infoRows[1].innerHTML = '<span class="label">📍 地点</span><span>' + (e.location || e.loc || '') + '</span>';
+  if (infoRows[2]) infoRows[2].innerHTML = '<span class="label">💰 费用</span><span style="color:var(--neon-green);">' + (e.fee === 0 ? '免费' : (e.fee || e.price || '0') + ' ฿') + (e.fee_info ? '（' + e.fee_info + '）' : '') + '</span>';
+  if (infoRows[3]) infoRows[3].innerHTML = '<span class="label">👥 报名</span><span style="color:var(--neon-cyan);">' + (e.joined_count || 0) + ' / ' + (e.max_participants || e.max || 0) + ' 人</span>';
+  // 底部价格
+  var priceEl = document.querySelector('.detail-section + div span[style*="font-size:18px"]');
+  if (priceEl) priceEl.textContent = (e.fee === 0 ? '免费' : (e.fee || e.price || '0') + ' ฿');
+  // 参与者头像（如有）
+  if (e.participants && e.participants.length) {
+    var pList = document.querySelector('.participant-list');
+    if (pList) {
+      var ph = '';
+      e.participants.slice(0, 5).forEach(function(p) {
+        ph += '<img class="avatar avatar-md" src="data:image/svg+xml,' + encodeURIComponent(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44">' +
+          '<rect fill="' + (p.color || '#06b6d4') + '" width="44" height="44" rx="22"/>' +
+          '<text x="22" y="29" text-anchor="middle" fill="white" font-size="18">' + (p.initial || '?') + '</text></svg>'
+        ) + '">';
+      });
+      if (e.participants.length > 5) ph += '<span style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:var(--bg-glass);border:1px solid var(--border-glass);font-size:12px;color:var(--text-muted);">+' + (e.participants.length - 5) + '</span>';
+      pList.innerHTML = ph;
+    }
+  }
+  // 活动描述
+  var descEl = document.querySelector('.desc');
+  if (descEl) descEl.innerHTML = '<p>' + ((e.description || '暂无描述').replace(/\n/g, '</p><p>')) + '</p>';
+}
+
+// ============ Join Event ============
+function joinEvent() {
+  if (!eventId) return;
+  var fee = currentEvent && currentEvent.fee;
+  if (fee > 0) {
+    openPayModal(); // 付费活动先弹支付
+  } else {
+    // 免费活动直接报名
+    apiFetch('/api/events/' + eventId + '/join', { method: 'POST' })
+      .then(function(data) {
+        showToast('报名成功！');
+        loadEventDetail(); // 刷新详情
+      })
+      .catch(function(err) {
+        console.error('报名失败', err);
+        if (err.message !== '未登录') showToast('报名失败');
+      });
+  }
+}
+
+// ============ Payment ============
+var payStep = 0, selectedPay = '', currentOrderId = null;
+var airwallexElements = null;       // Airwallex Elements 实例
+var airwallexPaymentElement = null; // Airwallex 支付表单元素
+
+function openPayModal() {
+  payStep = 0; selectedPay = ''; currentOrderId = null;
+  document.getElementById('payModal').style.display = 'flex';
+  renderPayStep();
+}
+
+function closePayModal() {
+  document.getElementById('payModal').style.display = 'none';
+  // 清理 Airwallex 实例
+  if (airwallexElements) {
+    try { airwallexElements.destroy(); } catch(e) {}
+    airwallexElements = null;
+  }
+}
+
+function renderPayStep() {
+  var s = document.getElementById('paySheet');
+  var amount = currentEvent && currentEvent.fee ? currentEvent.fee : 300;
+  if (payStep === 0) {
+    // 第一步：选择支付方式
+    s.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><h3>选择支付方式</h3><button onclick="closePayModal()" style="background:none;color:var(--text-muted);font-size:24px;">✕</button></div>' +
+      // 泰国本地支付方式优先展示
+      '<div class="pay-option" onclick="selectPay(this,\'promptpay\')"><div class="pay-icon" style="background:rgba(6,182,212,0.15);color:var(--neon-cyan);">PP</div><div><div style="font-weight:600;">PromptPay</div><div style="font-size:12px;color:var(--text-muted);">泰国即时支付（推荐）</div></div></div>' +
+      '<div class="pay-option" onclick="selectPay(this,\'truemoney\')"><div class="pay-icon" style="background:rgba(236,72,153,0.15);color:var(--neon-pink);">TM</div><div><div style="font-weight:600;">TrueMoney Wallet</div><div style="font-size:12px;color:var(--text-muted);">电子钱包</div></div></div>' +
+      // 国际支付方式
+      '<div class="pay-option" onclick="selectPay(this,\'card\')"><div class="pay-icon" style="background:rgba(59,130,246,0.15);color:var(--neon-blue);">💳</div><div><div style="font-weight:600;">Visa / Mastercard</div><div style="font-size:12px;color:var(--text-muted);">信用卡/借记卡</div></div></div>' +
+      '<div class="pay-option" onclick="selectPay(this,\'alipay\')"><div class="pay-icon" style="background:rgba(16,185,129,0.15);color:var(--neon-green);">支</div><div><div style="font-weight:600;">支付宝</div><div style="font-size:12px;color:var(--text-muted);">Alipay</div></div></div>' +
+      '<div class="pay-option" onclick="selectPay(this,\'wechatpay\')"><div class="pay-icon" style="background:rgba(16,185,129,0.15);color:var(--neon-green);">微</div><div><div style="font-weight:600;">微信支付</div><div style="font-size:12px;color:var(--text-muted);">WeChat Pay</div></div></div>' +
+      '<button class="btn btn-primary btn-full" style="margin-top:12px;opacity:0.5;" id="payConfirmBtn" disabled onclick="createAirwallexPayment()">确认支付 ' + amount + ' ฿</button>';
+  } else if (payStep === 1) {
+    // 第二步：显示支付表单（Airwallex Elements）
+    s.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><h3>完成支付</h3><button onclick="closePayModal()" style="background:none;color:var(--text-muted);font-size:24px;">✕</button></div>' +
+      '<div style="text-align:center;margin-bottom:12px;"><span style="font-size:13px;color:var(--text-muted);">支付金额</span><br><span style="font-size:24px;font-weight:700;color:var(--neon-cyan);">' + amount + ' ฿</span></div>' +
+      '<div id="airwallex-payment-element"></div>' +
+      '<div id="airwallex-loading" class="airwallex-loading">正在加载支付表单...</div>' +
+      '<div id="airwallex-error" class="airwallex-error" style="display:none;"></div>' +
+      '<button class="btn btn-outline btn-full" style="margin-top:12px;" onclick="goBackToPaySelect()">返回修改</button>';
+    // 创建 Airwallex 支付意向并渲染表单
+    createAirwallexIntent();
+  } else if (payStep === 2) {
+    // 第三步：支付成功
+    s.innerHTML = '<div style="text-align:center;"><div class="success-check" style="margin-bottom:16px;">✓</div><h3 style="font-size:20px;">支付成功！</h3><p style="color:var(--text-secondary);margin-top:8px;">' + amount + ' ฿ 已支付成功</p><p style="color:var(--text-muted);font-size:12px;margin-top:8px;">您已成功报名「' + (currentEvent ? currentEvent.title : '') + '」</p><button class="btn btn-primary btn-full" style="margin-top:20px;" onclick="closePayModal();">完成</button></div>';
+  }
+}
+
+function selectPay(el, method) {
+  document.querySelectorAll('.pay-option').forEach(function(o) { o.classList.remove('selected'); });
+  el.classList.add('selected');
+  selectedPay = method;
+  var btn = document.getElementById('payConfirmBtn');
+  btn.disabled = false;
+  btn.style.opacity = '1';
+}
+
+/**
+ * 创建 Airwallex 支付意向
+ * 调用后端 /api/payments/create-airwallex 接口
+ */
+function createAirwallexPayment() {
+  if (!eventId || !selectedPay) return;
+  var amount = currentEvent && currentEvent.fee ? currentEvent.fee : 300;
+  // 显示加载中
+  document.getElementById('payConfirmBtn').textContent = '正在创建支付...';
+  document.getElementById('payConfirmBtn').disabled = true;
+
+  apiFetch('/api/payments/create-airwallex', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      event_id: parseInt(eventId),
+      amount: amount,
+      payment_method: selectedPay
+    })
+  })
+  .then(function(data) {
+    currentOrderId = data.order_id || data.data?.order_no || null;
+    // 保存 client_secret 和 payment_intent_id 到全局，供渲染支付表单使用
+    window.__airwallexClientSecret = data.client_secret || data.data?.client_secret;
+    window.__airwallexPaymentIntentId = data.payment_intent_id || data.data?.payment_intent_id;
+    // 进入支付表单步骤
+    payStep = 1;
+    renderPayStep();
+  })
+  .catch(function(err) {
+    console.error('创建支付意向失败', err);
+    document.getElementById('payConfirmBtn').textContent = '确认支付 ' + amount + ' ฿';
+    document.getElementById('payConfirmBtn').disabled = false;
+    if (err.message !== '未登录') showToast('创建支付失败');
+  });
+}
+
+/**
+ * 创建 Airwallex Payment Intent 并渲染支付表单
+ * 使用 Airwallex Elements SDK 在 #airwallex-payment-element 中渲染支付表单
+ */
+function createAirwallexIntent() {
+  var clientSecret = window.__airwallexClientSecret;
+  var paymentIntentId = window.__airwallexPaymentIntentId;
+  if (!clientSecret || !paymentIntentId) {
+    showAirwallexError('支付凭证缺失，请重新选择支付方式');
+    return;
+  }
+
+  // 隐藏加载提示
+  var loadingEl = document.getElementById('airwallex-loading');
+  if (loadingEl) loadingEl.style.display = 'none';
+
+  try {
+    // 初始化 Airwallex Elements
+    // 文档：https://www.airwallex.com/docs/elements/overview
+    airwallexElements = Airwallex.createElement('payment', {
+      // clientSecret 是从后端获取的支付意向密钥
+      clientSecret: clientSecret,
+      // 外观配置（保持深色科技风 UI）
+      appearance: {
+        theme: 'night',
+        variables: {
+          colorPrimary: '#06b6d4',
+          colorBackground: '#0d1520',
+          colorText: '#e2e8f0',
+          borderRadius: '8px',
+          fontFamily: 'inherit',
+        },
+      },
+      // 支付方式配置（根据用户在第一步的选择）
+      paymentMethod: selectedPay === 'card' ? 'card' : undefined,
+    });
+
+    // 将支付表单挂载到容器
+    airwallexElements.mount('airwallex-payment-element');
+
+    // 监听支付表单提交成功事件
+    airwallexElements.on('success', function(event) {
+      console.log('✅ Airwallex 支付成功', event);
+      // 支付成功，进入成功步骤
+      payStep = 2;
+      renderPayStep();
+      // 同时报名活动
+      apiFetch('/api/events/' + eventId + '/join', { method: 'POST' })
+        .then(function() { loadEventDetail(); })
+        .catch(function(e) { console.error('报名失败', e); });
+    });
+
+    // 监听支付失败事件
+    airwallexElements.on('error', function(event) {
+      console.error('❌ Airwallex 支付失败', event);
+      showAirwallexError(event.error?.message || '支付失败，请重试');
+    });
+
+  } catch (err) {
+    console.error('初始化 Airwallex Elements 失败', err);
+    showAirwallexError('支付表单加载失败：' + err.message);
+  }
+}
+
+/**
+ * 显示 Airwallex 错误信息
+ */
+function showAirwallexError(msg) {
+  var errEl = document.getElementById('airwallex-error');
+  if (errEl) {
+    errEl.textContent = msg;
+    errEl.style.display = 'block';
+  }
+}
+
+/**
+ * 返回支付方式选择步骤
+ */
+function goBackToPaySelect() {
+  payStep = 0;
+  renderPayStep();
+}
+
+// 替换底部报名按钮的 onclick
+document.addEventListener('DOMContentLoaded', function() {
+  var joinBtn = document.querySelector('.detail-section + div .btn-primary');
+  if (joinBtn) joinBtn.onclick = function() { joinEvent(); };
+});
+
+// ============ Init ============
+loadEventDetail();
+
 (function(){
 var c=document.getElementById('particles-canvas'),ctx=c.getContext('2d'),w,h,ps=[];
 function R(){w=c.width=innerWidth;h=c.height=innerHeight;}R();addEventListener('resize',R);
 for(var i=0;i<60;i++)ps.push({x:Math.random()*w,y:Math.random()*h,vx:(Math.random()-.5)*.6,vy:(Math.random()-.5)*.6,r:Math.random()*1.5+.5});
 (function D(){ctx.clearRect(0,0,w,h);for(var i=0;i<ps.length;i++){var p=ps[i];p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=w;if(p.x>w)p.x=0;if(p.y<0)p.y=h;if(p.y>h)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(6,182,212,0.4)';ctx.fill();for(var j=i+1;j<ps.length;j++){var q=ps[j],dx=p.x-q.x,dy=p.y-q.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<100){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba(6,182,212,'+(.15*(1-dist/100))+')';ctx.stroke();}}}requestAnimationFrame(D);})();
 })();
-
-var payStep=0,selectedPay='';
-function openPayModal(){payStep=0;selectedPay='';document.getElementById('payModal').style.display='flex';renderPayStep();}
-function closePayModal(){document.getElementById('payModal').style.display='none';}
-function renderPayStep(){
-  var s=document.getElementById('paySheet');
-  if(payStep===0){
-    s.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;"><h3>选择支付方式</h3><button onclick="closePayModal()" style="background:none;color:var(--text-muted);font-size:24px;">✕</button></div>'+
-    '<div class="pay-option" onclick="selectPay(this,\'promptpay\')"><div class="pay-icon" style="background:rgba(6,182,212,0.15);color:var(--neon-cyan);">PP</div><div><div style="font-weight:600;">PromptPay</div><div style="font-size:12px;color:var(--text-muted);">泰国即时支付</div></div></div>'+
-    '<div class="pay-option" onclick="selectPay(this,\'truemoney\')"><div class="pay-icon" style="background:rgba(236,72,153,0.15);color:var(--neon-pink);">TM</div><div><div style="font-weight:600;">TrueMoney Wallet</div><div style="font-size:12px;color:var(--text-muted);">电子钱包</div></div></div>'+
-    '<div class="pay-option" onclick="selectPay(this,\'visa\')"><div class="pay-icon" style="background:rgba(59,130,246,0.15);color:var(--neon-blue);">V</div><div><div style="font-weight:600;">Visa / Mastercard</div><div style="font-size:12px;color:var(--text-muted);">信用卡/借记卡</div></div></div>'+
-    '<div class="pay-option" onclick="selectPay(this,\'alipay\')"><div class="pay-icon" style="background:rgba(16,185,129,0.15);color:var(--neon-green);">支</div><div><div style="font-weight:600;">支付宝</div><div style="font-size:12px;color:var(--text-muted);">Alipay</div></div></div>'+
-    '<button class="btn btn-primary btn-full" style="margin-top:12px;opacity:0.5;" id="payConfirmBtn" disabled onclick="payStep=1;renderPayStep();">确认支付 300 ฿</button>';
-  }else if(payStep===1){
-    s.innerHTML='<div style="text-align:center;"><div class="success-check" style="margin-bottom:16px;">✓</div><h3 style="font-size:20px;">支付成功！</h3><p style="color:var(--text-secondary);margin-top:8px;">300 ฿ 已从 '+selectedPay+' 支付</p><p style="color:var(--text-muted);font-size:12px;margin-top:8px;">您已成功报名「清迈日出瑜伽」</p><button class="btn btn-primary btn-full" style="margin-top:20px;" onclick="closePayModal();showToast(\'报名成功！查看我的活动\')">完成</button></div>';
-  }
-}
-function selectPay(el,method){
-  document.querySelectorAll('.pay-option').forEach(function(o){o.classList.remove('selected')});
-  el.classList.add('selected');selectedPay=method;
-  var btn=document.getElementById('payConfirmBtn');btn.disabled=false;btn.style.opacity='1';
-}
 function showToast(msg){var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove()},2000);}
 </script>
 </body>

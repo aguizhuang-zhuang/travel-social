@@ -24,13 +24,79 @@
 </nav>
 
 <script>
-var venues=[
-  {id:1,name:'曼谷暹罗别墅',type:'别墅',cover:'linear-gradient(135deg,#06b6d4,#3b82f6)',icon:'🏡',capacity:30,price:'1,200฿',loc:'素坤逸路 Soi 24',tags:['泳池','BBQ','投影仪']},
-  {id:2,name:'清迈艺术咖啡馆',type:'咖啡馆',cover:'linear-gradient(135deg,#a855f7,#ec4899)',icon:'☕',capacity:20,price:'800฿',loc:'宁曼路 Nimman',tags:['WiFi','投影仪','白板']},
-  {id:3,name:'普吉海滨公区',type:'海滩',cover:'linear-gradient(135deg,#f59e0b,#ef4444)',icon:'🏖️',capacity:80,price:'2,500฿',loc:'卡塔海滩',tags:['落日景','音响','吧台']},
-  {id:4,name:'曼谷共享会议室',type:'会议室',cover:'linear-gradient(135deg,#3b82f6,#a855f7)',icon:'💼',capacity:15,price:'500฿',loc:'Asoke',tags:['白板','视频会议','咖啡']},
-  {id:5,name:'清迈青旅公区',type:'青旅公区',cover:'linear-gradient(135deg,#10b981,#06b6d4)',icon:'🏠',capacity:40,price:'600฿',loc:'古城内',tags:['桌游','吉他','厨房']},
-];
+// ============ API Helpers ============
+function getToken() { return localStorage.getItem('jwt_token') || ''; }
+function authHeaders() {
+  const t = getToken();
+  return t ? { 'Authorization': 'Bearer ' + t } : {};
+}
+function apiFetch(url, options) {
+  options = options || {};
+  options.headers = Object.assign(authHeaders(), options.headers || {});
+  return fetch(url, options).then(function(res) {
+    if (res.status === 401) {
+      showToast('请先登录');
+      if (typeof openLoginModal === 'function') openLoginModal();
+      throw new Error('未登录');
+    }
+    return res.json();
+  });
+}
+
+// ============ Load Venues from API ============
+function loadVenues(search) {
+  var url = '/api/venues';
+  if (search) url += '?search=' + encodeURIComponent(search);
+  showToast('加载场地中...');
+  apiFetch(url)
+    .then(function(data) {
+      renderVenues(data.venues || data);
+    })
+    .catch(function(err) {
+      console.error('加载场地失败', err);
+      if (err.message !== '未登录') showToast('加载场地失败');
+    });
+}
+
+function renderVenues(venues) {
+  var h = '';
+  (venues || []).forEach(function(v) {
+    var cover = v.cover || 'linear-gradient(135deg,#06b6d4,#3b82f6)';
+    var icon = v.icon || '📍';
+    var name = v.name || '未命名场地';
+    var type = v.type || v.venue_type || '场地';
+    var capacity = v.capacity || v.capacity_max || 0;
+    var price = v.price_per_hour !== undefined ? v.price_per_hour + '฿' : (v.price || '0฿');
+    var loc = v.location || v.address || '';
+    var tags = v.tags || [];
+    var vid = v.id || 0;
+    h += '<div class="venue-card" onclick="location.href=\'venue-detail.html?id=' + vid + '\'">' +
+      '<div class="venue-image" style="background:' + cover + ';display:flex;align-items:center;justify-content:center;font-size:56px;">' + icon + '</div>' +
+      '<div class="venue-info"><div style="display:flex;align-items:center;gap:8px;"><span style="font-weight:600;font-size:15px;">' + name + '</span><span class="tag tag-cyan">' + type + '</span></div>' +
+      '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">📍 ' + loc + ' · 👥 容纳 ' + capacity + ' 人 · 💰 ' + price + '/小时</div>' +
+      '<div style="display:flex;gap:4px;margin-top:6px;">' + tags.slice(0, 4).map(function(t){ return '<span class="tag tag-purple">' + t + '</span>'; }).join('') + '</div></div>' +
+      '<div class="venue-actions"><button class="btn btn-outline btn-sm" onclick="event.stopPropagation();showToast(\'将跳转 Google Maps 导航\')">🧭 导航</button>' +
+      '<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();location.href=\'venue-detail.html?id=' + vid + '\'">📋 预约</button></div></div>';
+  });
+  document.getElementById('venueList').innerHTML = h || '<div style="text-align:center;padding:40px;color:var(--text-muted);">暂无场地</div>';
+}
+
+// ============ Search ============
+document.addEventListener('DOMContentLoaded', function() {
+  var searchInput = document.querySelector('.page-content input[type="text"]');
+  if (searchInput) {
+    searchInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        var q = this.value.trim();
+        if (q) loadVenues(q);
+        else loadVenues();
+      }
+    });
+  }
+});
+
+// ============ Init ============
+loadVenues();
 
 (function(){
   var h='';

@@ -91,31 +91,183 @@
 </div>
 
 <script>
+// ============ API Helpers ============
+function getToken() { return localStorage.getItem('jwt_token') || ''; }
+function authHeaders() {
+  const t = getToken();
+  return t ? { 'Authorization': 'Bearer ' + t } : {};
+}
+function apiFetch(url, options) {
+  options = options || {};
+  options.headers = Object.assign(authHeaders(), options.headers || {});
+  return fetch(url, options).then(function(res) {
+    if (res.status === 401) {
+      showToast('请先登录');
+      if (typeof openLoginModal === 'function') openLoginModal();
+      throw new Error('未登录');
+    }
+    return res.json();
+  });
+}
+
+// ============ Load Venue Detail ============
+var currentVenue = null;
+var venueId = null;
+var selectedSlot = null;
+
+function getVenueId() {
+  var params = new URLSearchParams(window.location.search);
+  return params.get('id') || 1;
+}
+
+function loadVenueDetail() {
+  venueId = getVenueId();
+  apiFetch('/api/venues/' + venueId)
+    .then(function(data) {
+      currentVenue = data.venue || data;
+      renderVenueDetail(currentVenue);
+    })
+    .catch(function(err) {
+      console.error('加载场地详情失败', err);
+      if (err.message !== '未登录') showToast('加载场地详情失败');
+    });
+}
+
+function renderVenueDetail(v) {
+  if (!v) return;
+  document.title = (v.name || '场地详情') + ' - ThaiGo';
+  // 名称 + 类型
+  var nameEl = document.querySelector('h2');
+  if (nameEl) nameEl.textContent = v.name || '未命名场地';
+  var tagEl = document.querySelector('h2 + .tag, .page-content > div > .tag-cyan');
+  if (!tagEl) tagEl = document.querySelector('.tag-cyan');
+  if (tagEl) tagEl.textContent = v.type || v.venue_type || '场地';
+  // 位置 + 容量 + 价格
+  var infoEls = document.querySelectorAll('.page-content > div');
+  // 价格
+  var priceVal = v.price_per_hour !== undefined ? v.price_per_hour + ' ฿' : (v.price || '0 ฿');
+  var priceEls = document.querySelectorAll('[style*="color:var(--neon-green)"]');
+  if (priceEls.length) priceEls[priceEls.length - 1].innerHTML = priceVal + ' <span style="font-size:13px;color:var(--text-muted);">/ 小时</span>';
+  // 设施 tags
+  var tags = v.tags || [];
+  var tagsContainer = document.querySelector('.page-content > div:nth-child(2) > div[style*="flex-wrap"], .page-content .tag-purple')?.parentElement;
+  if (tags.length && tagsContainer) {
+    tagsContainer.innerHTML = tags.map(function(t) { return '<span class="tag tag-purple">' + t + '</span>'; }).join('');
+  }
+  // 可用时段
+  var slots = v.available_slots || [];
+  var slotsContainer = document.getElementById('timeSlots');
+  if (slots.length && slotsContainer) {
+    slotsContainer.innerHTML = slots.map(function(s) {
+      var cls = s.available ? (s.selected ? 'slot selected' : 'slot') : 'slot unavailable';
+      return '<span class="' + cls + '">' + s.start + '-' + s.end + '</span>';
+    }).join('');
+    // 重新绑定点击事件
+    slotsContainer.querySelectorAll('.slot').forEach(function(el) {
+      el.addEventListener('click', function() {
+        if (this.classList.contains('unavailable')) return;
+        slotsContainer.querySelectorAll('.slot').forEach(function(x) { x.classList.remove('selected'); });
+        this.classList.add('selected');
+        selectedSlot = this.textContent;
+        updateBookingBar();
+      });
+    });
+  }
+  // 轮播图（如有图片列表）
+  if (v.images && v.images.length) {
+    var inner = document.getElementById('carouselInner');
+    if (inner) {
+      inner.innerHTML = v.images.map(function(img) {
+        return '<div class="carousel-slide" style="background:linear-gradient(135deg,#06b6d4,#3b82f6);background-image:url(' + img + ');background-size:cover;background-position:center;"></div>';
+      }).join('');
+    }
+  }
+}
+
+function updateBookingBar() {
+  if (!selectedSlot || !currentVenue) return;
+  var parts = selectedSlot.split('-');
+  var price = currentVenue.price_per_hour || 0;
+  var barText = document.querySelector('.app-container > div[style*="position:sticky"]');
+  // 底部栏已固定，无需修改
+}
+
+// ============ Booking ============
+function openBooking() {
+  if (!venueId) return;
+  var slotEl = document.querySelector('#timeSlots .slot.selected');
+  if (!slotEl) { showToast('请先选择时段'); return; }
+  var slotText = slotEl.textContent;
+  var parts = slotText.split('-');
+  apiFetch('/api/venues/' + venueId + '/book', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      start_time: parts[0],
+      end_time: parts[1]
+    })
+  })
+  .then(function(data) {
+    document.getElementById('bookingModal').style.display = 'flex';
+    // 更新弹窗内容
+    var modal = document.getElementById('bookingModal');
+    var infoP = modal.querySelector('p');
+    if (infoP) infoP.textContent = (currentVenue ? currentVenue.name : '') + ' · 今天 ' + slotText;
+    var priceP = modal.querySelector('p[style*="font-size:20px"]');
+    if (priceP) {
+      var hours = parseFloat(parts[1]) - parseFloat(parts[0]) || 2;
+      priceP.textContent = (hours * (currentVenue.price_per_hour || 0)) + ' ฿';
+    }
+  })
+  .catch(function(err) {
+    console.error('预约失败', err);
+    if (err.message !== '未登录') showToast('预约失败');
+  });
+}
+
+function closeBooking() { document.getElementById('bookingModal').style.display = 'none'; }
+
+// ============ Carousel ============
+var slideIdx = 0, totalSlides = 4;
+(function(){
+  var dots = '';
+  for (var i = 0; i < totalSlides; i++) dots += '<div class="carousel-dot' + (i === 0 ? ' active' : '') + '" onclick="goSlide(' + i + ')"></div>';
+  var dotsContainer = document.getElementById('carouselDots');
+  if (dotsContainer) dotsContainer.innerHTML = dots;
+  setInterval(function() { goSlide((slideIdx + 1) % totalSlides); }, 4000);
+})();
+function goSlide(i) {
+  slideIdx = i;
+  var inner = document.getElementById('carouselInner');
+  if (inner) inner.style.transform = 'translateX(-' + i + '00%)';
+  var dots = document.querySelectorAll('.carousel-dot');
+  if (dots.length) dots.forEach(function(d, j) { d.classList.toggle('active', j === i); });
+}
+
+// ============ Time Slot Click ============
+document.addEventListener('DOMContentLoaded', function() {
+  var slots = document.querySelectorAll('#timeSlots .slot');
+  slots.forEach(function(s) {
+    s.addEventListener('click', function() {
+      if (this.classList.contains('unavailable')) return;
+      document.querySelectorAll('#timeSlots .slot').forEach(function(x) { x.classList.remove('selected'); });
+      this.classList.add('selected');
+    });
+  });
+  // 绑定预约按钮
+  var bookBtn = document.querySelector('.btn-accent');
+  if (bookBtn) bookBtn.onclick = function() { openBooking(); };
+});
+
+// ============ Init ============
+loadVenueDetail();
+
 (function(){
 var c=document.getElementById('particles-canvas'),ctx=c.getContext('2d'),w,h,ps=[];
 function R(){w=c.width=innerWidth;h=c.height=innerHeight;}R();addEventListener('resize',R);
 for(var i=0;i<60;i++)ps.push({x:Math.random()*w,y:Math.random()*h,vx:(Math.random()-.5)*.6,vy:(Math.random()-.5)*.6,r:Math.random()*1.5+.5});
 (function D(){ctx.clearRect(0,0,w,h);for(var i=0;i<ps.length;i++){var p=ps[i];p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=w;if(p.x>w)p.x=0;if(p.y<0)p.y=h;if(p.y>h)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(6,182,212,0.4)';ctx.fill();for(var j=i+1;j<ps.length;j++){var q=ps[j],dx=p.x-q.x,dy=p.y-q.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<100){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba(6,182,212,'+(.15*(1-dist/100))+')';ctx.stroke();}}}requestAnimationFrame(D);})();
 })();
-
-var slideIdx=0,totalSlides=4;
-(function(){
-  var dots='';
-  for(var i=0;i<totalSlides;i++)dots+='<div class="carousel-dot'+(i===0?' active':'')+'" onclick="goSlide('+i+')"></div>';
-  document.getElementById('carouselDots').innerHTML=dots;
-  setInterval(function(){goSlide((slideIdx+1)%totalSlides)},4000);
-})();
-function goSlide(i){slideIdx=i;document.getElementById('carouselInner').style.transform='translateX(-'+i+'00%)';
-  document.querySelectorAll('.carousel-dot').forEach(function(d,j){d.classList.toggle('active',j===i)});}
-
-document.querySelectorAll('.slot').forEach(function(s){s.addEventListener('click',function(){
-  if(this.classList.contains('unavailable'))return;
-  document.querySelectorAll('.slot').forEach(function(x){x.classList.remove('selected')});
-  this.classList.add('selected');
-})});
-
-function openBooking(){document.getElementById('bookingModal').style.display='flex';}
-function closeBooking(){document.getElementById('bookingModal').style.display='none';showToast('预约确认已发送');}
 function showToast(msg){var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove()},2000);}
 </script>
 </body>

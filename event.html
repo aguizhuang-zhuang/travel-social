@@ -66,38 +66,141 @@
 </div>
 
 <script>
-var events = [
-  {id:1,title:'曼谷城市骑行探索',type:'户外',cover:'linear-gradient(135deg,#06b6d4,#3b82f6)',icon:'🚴',host:'Liam',date:'6月12日 09:00',loc:'伦披尼公园',price:'200฿',joined:12,max:20,city:'曼谷'},
-  {id:2,title:'清迈素贴山日出瑜伽',type:'户外',cover:'linear-gradient(135deg,#10b981,#06b6d4)',icon:'🧘',host:'Sophia',date:'6月15日 06:00',loc:'素贴山脚',price:'300฿',joined:8,max:20,city:'清迈'},
-  {id:3,title:'普吉岛满月沙滩派对',type:'派对',cover:'linear-gradient(135deg,#ec4899,#f59e0b)',icon:'🌕',host:'Akira',date:'6月18日 20:00',loc:'芭东海滩',price:'500฿',joined:45,max:100,city:'普吉'},
-  {id:4,title:'泰式料理烹饪课堂',type:'美食',cover:'linear-gradient(135deg,#f59e0b,#ef4444)',icon:'🍳',host:'มานะ',date:'6月14日 10:00',loc:'唐人街烹饪学校',price:'800฿',joined:6,max:15,city:'曼谷'},
-  {id:5,title:'芭提雅珊瑚岛浮潜',type:'水上运动',cover:'linear-gradient(135deg,#3b82f6,#06b6d4)',icon:'🤿',host:'David',date:'6月20日 08:00',loc:'芭提雅码头',price:'1500฿',joined:5,max:12,city:'芭提雅'},
-  {id:6,title:'曼谷艺术文化交流夜',type:'文化交流',cover:'linear-gradient(135deg,#a855f7,#ec4899)',icon:'🎨',host:'Somsak',date:'6月16日 19:00',loc:'曼谷艺术中心',price:'免费',joined:23,max:50,city:'曼谷'},
-  {id:7,title:'清迈夜市美食之旅',type:'美食',cover:'linear-gradient(135deg,#ef4444,#f59e0b)',icon:'🍜',host:'Nong',date:'6月13日 18:00',loc:'清迈夜市',price:'AA制',joined:15,max:30,city:'清迈'},
-  {id:8,title:'普吉岛丛林飞跃',type:'户外',cover:'linear-gradient(135deg,#10b981,#3b82f6)',icon:'🌴',host:'Tom',date:'6月19日 09:00',loc:'卡图区',price:'1800฿',joined:4,max:10,city:'普吉'},
-];
-
-function renderEvents(filter){
-  var h='';
-  events.forEach(function(e){
-    if(filter&&filter!=='全部'&&e.type!==filter)return;
-    h+='<div class="activity-card" onclick="location.href=\'event-detail.html\'">'+
-      '<div class="activity-cover" style="background:'+e.cover+';display:flex;align-items:center;justify-content:center;font-size:52px;">'+e.icon+'</div>'+
-      '<div class="activity-info"><div style="font-size:15px;font-weight:600;">'+e.title+'</div>'+
-      '<div class="activity-meta"><span>👤 '+e.host+'</span><span>📅 '+e.date+'</span><span>📍 '+e.loc+'</span><span>💰 '+e.price+'</span></div></div>'+
-      '<div class="activity-footer"><span style="font-size:12px;color:var(--neon-cyan);">👥 '+e.joined+'/'+e.max+' 人</span>'+
-      '<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();showToast(\'已报名！\')">立即报名</button></div></div>';
-  });
-  document.getElementById('eventList').innerHTML=h;
+// ============ API Helpers ============
+function getToken() { return localStorage.getItem('jwt_token') || ''; }
+function authHeaders() {
+  const t = getToken();
+  return t ? { 'Authorization': 'Bearer ' + t } : {};
 }
-renderEvents();
+function apiFetch(url, options) {
+  options = options || {};
+  options.headers = Object.assign(authHeaders(), options.headers || {});
+  return fetch(url, options).then(function(res) {
+    if (res.status === 401) {
+      showToast('请先登录');
+      if (typeof openLoginModal === 'function') openLoginModal();
+      throw new Error('未登录');
+    }
+    return res.json();
+  });
+}
+
+// ============ Load Events from API ============
+var allEvents = [];
+
+function loadEvents(category) {
+  var url = '/api/events';
+  if (category && category !== '全部') url += '?category=' + encodeURIComponent(category);
+  showToast('加载活动中...');
+  apiFetch(url)
+    .then(function(data) {
+      allEvents = data.events || data;
+      renderEventsFromAPI(allEvents);
+    })
+    .catch(function(err) {
+      console.error('加载活动失败', err);
+      if (err.message !== '未登录') showToast('加载活动失败');
+    });
+}
+
+function renderEventsFromAPI(events) {
+  var h = '';
+  (events || []).forEach(function(e) {
+    var cover = e.cover || 'linear-gradient(135deg,#06b6d4,#3b82f6)';
+    var icon = e.icon || '📅';
+    var host = e.host_name || e.host || '未知';
+    var date = e.start_time || e.date || '';
+    var loc = e.location || e.loc || '';
+    var price = e.fee !== undefined ? (e.fee === 0 ? '免费' : e.fee + '฿') : (e.price || '免费');
+    var joined = e.joined_count || e.joined || 0;
+    var max = e.max_participants || e.max || 0;
+    var eid = e.id || 0;
+    h += '<div class="activity-card" onclick="location.href=\'event-detail.html?id=' + eid + '\'">' +
+      '<div class="activity-cover" style="background:' + cover + ';display:flex;align-items:center;justify-content:center;font-size:52px;">' + icon + '</div>' +
+      '<div class="activity-info"><div style="font-size:15px;font-weight:600;">' + (e.title || '无标题') + '</div>' +
+      '<div class="activity-meta"><span>👤 ' + host + '</span><span>📅 ' + date + '</span><span>📍 ' + loc + '</span><span>💰 ' + price + '</span></div></div>' +
+      '<div class="activity-footer"><span style="font-size:12px;color:var(--neon-cyan);">👥 ' + joined + '/' + max + ' 人</span>' +
+      '<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();joinEvent(' + eid + ')">立即报名</button></div></div>';
+  });
+  document.getElementById('eventList').innerHTML = h || '<div style="text-align:center;padding:40px;color:var(--text-muted);">暂无活动</div>';
+}
+
+function joinEvent(eventId) {
+  apiFetch('/api/events/' + eventId + '/join', { method: 'POST' })
+    .then(function(data) {
+      showToast('报名成功！');
+      loadEvents(); // 刷新列表
+    })
+    .catch(function(err) {
+      console.error('报名失败', err);
+      if (err.message !== '未登录') showToast('报名失败');
+    });
+}
+
+// ============ Filter ============
 document.querySelectorAll('#filterBar .filter-chip').forEach(function(chip){
   chip.addEventListener('click',function(){
     document.querySelectorAll('#filterBar .filter-chip').forEach(function(c){c.classList.remove('active')});
     chip.classList.add('active');
-    renderEvents(chip.textContent);
+    loadEvents(chip.textContent);
   });
 });
+
+// ============ Publish Event ============
+function openPublish(){document.getElementById('publishModal').style.display='flex';}
+function closePublish(){document.getElementById('publishModal').style.display='none';}
+
+function submitPublish() {
+  var modal = document.getElementById('publishModal');
+  var inputs = modal.querySelectorAll('input, select, textarea');
+  var title = inputs[0].value.trim();
+  var category = inputs[1].value;
+  var start_time = inputs[2].value;
+  var location = inputs[3].value.trim();
+  var fee_type = inputs[4].value;
+  var max_participants = inputs[5].value;
+  var description = inputs[6].value.trim();
+
+  if (!title) { showToast('请填写活动标题'); return; }
+
+  var fee = 0;
+  if (fee_type === 'AA制') fee = -1; // 后端约定 -1 表示 AA
+  else if (fee_type !== '免费') fee = parseInt(fee_type) || 0;
+
+  apiFetch('/api/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: title,
+      category: category,
+      start_time: start_time,
+      location: location,
+      fee: fee,
+      max_participants: parseInt(max_participants) || 20,
+      description: description
+    })
+  })
+  .then(function(data) {
+    showToast('活动发布成功！');
+    closePublish();
+    // 清空表单
+    inputs.forEach(function(inp) { if (inp.type === 'number') inp.value = ''; else inp.value = ''; });
+    loadEvents(); // 刷新列表
+  })
+  .catch(function(err) {
+    console.error('发布失败', err);
+    if (err.message !== '未登录') showToast('发布失败');
+  });
+}
+
+// 替换发布按钮的 onclick
+document.addEventListener('DOMContentLoaded', function() {
+  var publishBtn = document.querySelector('.publish-modal-content .btn-primary');
+  if (publishBtn) publishBtn.onclick = function(e) { e.preventDefault(); submitPublish(); };
+});
+
+// ============ Init ============
+loadEvents();
 
 (function(){
 var c=document.getElementById('particles-canvas'),ctx=c.getContext('2d'),w,h,ps=[];
@@ -106,8 +209,6 @@ for(var i=0;i<60;i++)ps.push({x:Math.random()*w,y:Math.random()*h,vx:(Math.rando
 (function D(){ctx.clearRect(0,0,w,h);for(var i=0;i<ps.length;i++){var p=ps[i];p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=w;if(p.x>w)p.x=0;if(p.y<0)p.y=h;if(p.y>h)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(6,182,212,0.4)';ctx.fill();for(var j=i+1;j<ps.length;j++){var q=ps[j],dx=p.x-q.x,dy=p.y-q.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<100){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba(6,182,212,'+(.15*(1-dist/100))+')';ctx.stroke();}}}requestAnimationFrame(D);})();
 })();
 function showToast(msg){var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove()},2000);}
-function openPublish(){document.getElementById('publishModal').style.display='flex';}
-function closePublish(){document.getElementById('publishModal').style.display='none';}
 </script>
 </body>
 </html>
