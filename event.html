@@ -53,14 +53,23 @@
       <button onclick="closePublish()" style="background:none;color:var(--text-muted);font-size:24px;">✕</button>
     </div>
     <div class="publish-modal-content">
-      <label>活动标题</label><input type="text" placeholder="给你的活动起个吸引人的名字">
-      <label>活动类型</label><select><option>户外</option><option>派对</option><option>文化交流</option><option>美食</option><option>水上运动</option></select>
-      <label>日期时间</label><input type="datetime-local">
-      <label>地点</label><input type="text" placeholder="集合地点">
-      <label>费用</label><select><option>免费</option><option>AA制</option><option>固定价格</option></select>
-      <label>人数上限</label><input type="number" placeholder="20" min="2" max="500">
-      <label>活动描述</label><textarea placeholder="描述活动内容、注意事项等"></textarea>
-      <button class="btn btn-primary btn-full" style="margin-top:16px;" onclick="closePublish();showToast('活动发布成功！')">发布活动</button>
+      <label>活动标题 *</label><input type="text" id="pubTitle" placeholder="给你的活动起个吸引人的名字">
+      <label>活动类型</label><select id="pubCategory">
+        <option>文化</option><option>户外</option><option>运动</option>
+        <option>美食</option><option>社交</option><option>艺术</option>
+        <option>学习</option><option>观光</option><option>水上运动</option>
+      </select>
+      <label>城市</label><select id="pubCity">
+        <option>曼谷</option><option>清迈</option><option>普吉岛</option>
+        <option>芭提雅</option><option>苏梅岛</option><option>大城府</option><option>其他</option>
+      </select>
+      <label>集合地点</label><input type="text" id="pubLocation" placeholder="具体地址或地标">
+      <label>开始时间</label><input type="datetime-local" id="pubStartTime">
+      <label>结束时间</label><input type="datetime-local" id="pubEndTime">
+      <label>价格（泰铢）</label><input type="number" id="pubPrice" placeholder="0 表示免费" min="0" value="0">
+      <label>人数上限</label><input type="number" id="pubMax" placeholder="20" min="2" max="500" value="20">
+      <label>活动描述</label><textarea id="pubDesc" placeholder="描述活动内容、注意事项等"></textarea>
+      <button class="btn btn-primary btn-full" style="margin-top:16px;" id="pubSubmitBtn">发布活动</button>
     </div>
   </div>
 </div>
@@ -153,52 +162,64 @@ function openPublish(){document.getElementById('publishModal').style.display='fl
 function closePublish(){document.getElementById('publishModal').style.display='none';}
 
 function submitPublish() {
-  var modal = document.getElementById('publishModal');
-  var inputs = modal.querySelectorAll('input, select, textarea');
-  var title = inputs[0].value.trim();
-  var category = inputs[1].value;
-  var start_time = inputs[2].value;
-  var location = inputs[3].value.trim();
-  var fee_type = inputs[4].value;
-  var max_participants = inputs[5].value;
-  var description = inputs[6].value.trim();
+  var title = document.getElementById('pubTitle').value.trim();
+  var category = document.getElementById('pubCategory').value;
+  var city = document.getElementById('pubCity').value;
+  var location = document.getElementById('pubLocation').value.trim();
+  var start_time = document.getElementById('pubStartTime').value;
+  var end_time = document.getElementById('pubEndTime').value;
+  var price = parseInt(document.getElementById('pubPrice').value) || 0;
+  var max_participants = parseInt(document.getElementById('pubMax').value) || 20;
+  var description = document.getElementById('pubDesc').value.trim();
 
   if (!title) { showToast('请填写活动标题'); return; }
-
-  var fee = 0;
-  if (fee_type === 'AA制') fee = -1; // 后端约定 -1 表示 AA
-  else if (fee_type !== '免费') fee = parseInt(fee_type) || 0;
+  if (!start_time) { showToast('请选择开始时间'); return; }
+  if (!end_time) { showToast('请选择结束时间'); return; }
 
   apiFetch('/api/events', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       title: title,
+      description: description || title,
       category: category,
-      start_time: start_time,
+      city: city,
       location: location,
-      fee: fee,
-      max_participants: parseInt(max_participants) || 20,
-      description: description
+      start_time: start_time,
+      end_time: end_time,
+      price: price,
+      max_participants: max_participants,
+      currency: 'THB'
     })
   })
   .then(function(data) {
-    showToast('活动发布成功！');
-    closePublish();
-    // 清空表单
-    inputs.forEach(function(inp) { if (inp.type === 'number') inp.value = ''; else inp.value = ''; });
-    loadEvents(); // 刷新列表
+    if (data.success) {
+      showToast('活动发布成功！');
+      closePublish();
+      loadEvents();
+    } else {
+      showToast('发布失败: ' + (data.error || data.message || '未知错误'));
+    }
   })
   .catch(function(err) {
     console.error('发布失败', err);
-    if (err.message !== '未登录') showToast('发布失败');
+    if (err.message !== '未登录') showToast('发布失败，请检查网络或登录状态');
   });
 }
 
-// 替换发布按钮的 onclick
+// 绑定发布按钮
 document.addEventListener('DOMContentLoaded', function() {
-  var publishBtn = document.querySelector('.publish-modal-content .btn-primary');
-  if (publishBtn) publishBtn.onclick = function(e) { e.preventDefault(); submitPublish(); };
+  var submitBtn = document.getElementById('pubSubmitBtn');
+  if (submitBtn) submitBtn.onclick = function(e) { e.preventDefault(); submitPublish(); };
+
+  // 如果 URL 带 ?openPublish=1，自动弹出发布表单
+  if (window.location.search.indexOf('openPublish=1') !== -1) {
+    openPublish();
+    // 清除 URL 参数
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({}, document.title, 'event.html');
+    }
+  }
 });
 
 // ============ Init ============
