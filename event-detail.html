@@ -151,7 +151,11 @@ function authHeaders() {
 const API_BASE = 'https://travel-social-backend-production.up.railway.app';
 function apiFetch(url, options) {
   options = options || {};
-  options.headers = Object.assign(authHeaders(), options.headers || {});
+  options.headers = options.headers || {};
+  var method = (options.method || 'GET').toUpperCase();
+  if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
+    Object.assign(options.headers, authHeaders());
+  }
   const fullUrl = url.startsWith('http') ? url : API_BASE + url;
   return fetch(fullUrl, options).then(function(res) {
     if (res.status === 401) {
@@ -457,6 +461,116 @@ for(var i=0;i<60;i++)ps.push({x:Math.random()*w,y:Math.random()*h,vx:(Math.rando
 (function D(){ctx.clearRect(0,0,w,h);for(var i=0;i<ps.length;i++){var p=ps[i];p.x+=p.vx;p.y+=p.vy;if(p.x<0)p.x=w;if(p.x>w)p.x=0;if(p.y<0)p.y=h;if(p.y>h)p.y=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle='rgba(6,182,212,0.4)';ctx.fill();for(var j=i+1;j<ps.length;j++){var q=ps[j],dx=p.x-q.x,dy=p.y-q.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<100){ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle='rgba(6,182,212,'+(.15*(1-dist/100))+')';ctx.stroke();}}}requestAnimationFrame(D);})();
 })();
 function showToast(msg){var t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove()},2000);}
+
+// ============ Auth Modal ============
+var authMode = 'login';
+function openLoginModal() { document.getElementById('loginModal').style.display = 'flex'; }
+function closeLoginModal() { document.getElementById('loginModal').style.display = 'none'; }
+function toggleAuthForm() {
+  if (authMode === 'login') {
+    authMode = 'register';
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('registerForm').style.display = 'block';
+    document.getElementById('loginModalTitle').textContent = '注册';
+    document.getElementById('toggleText').textContent = '已有账号？';
+    document.getElementById('toggleLink').textContent = '登录';
+  } else {
+    authMode = 'login';
+    document.getElementById('loginForm').style.display = 'block';
+    document.getElementById('registerForm').style.display = 'none';
+    document.getElementById('loginModalTitle').textContent = '登录';
+    document.getElementById('toggleText').textContent = '还没有账号？';
+    document.getElementById('toggleLink').textContent = '注册';
+  }
+}
+function handleLogin(e) {
+  e.preventDefault();
+  var email = document.getElementById('loginEmail').value.trim();
+  var password = document.getElementById('loginPassword').value;
+  var btn = document.getElementById('loginSubmitBtn');
+  btn.textContent = '登录中...'; btn.disabled = true;
+  fetch(API_BASE + '/api/auth/login', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email, password: password })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.token) {
+      localStorage.setItem('jwt_token', data.token);
+      showToast('登录成功'); closeLoginModal(); location.reload();
+    } else {
+      document.getElementById('loginError').textContent = data.error || data.message || '登录失败';
+      document.getElementById('loginError').style.display = 'block';
+    }
+    btn.textContent = '登录'; btn.disabled = false;
+  })
+  .catch(function(err) {
+    document.getElementById('loginError').textContent = '网络错误';
+    document.getElementById('loginError').style.display = 'block';
+    btn.textContent = '登录'; btn.disabled = false;
+  });
+}
+function handleRegister(e) {
+  e.preventDefault();
+  var name = document.getElementById('regName').value.trim();
+  var email = document.getElementById('regEmail').value.trim();
+  var password = document.getElementById('regPassword').value;
+  var confirm = document.getElementById('regConfirm').value;
+  if (password !== confirm) {
+    document.getElementById('registerError').textContent = '两次密码不一致';
+    document.getElementById('registerError').style.display = 'block'; return;
+  }
+  var btn = document.getElementById('registerSubmitBtn');
+  btn.textContent = '注册中...'; btn.disabled = true;
+  fetch(API_BASE + '/api/auth/register', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name, email: email, password: password, confirmPassword: confirm })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.token) {
+      localStorage.setItem('jwt_token', data.token);
+      showToast('注册成功'); closeLoginModal(); location.reload();
+    } else {
+      document.getElementById('registerError').textContent = data.error || data.message || '注册失败';
+      document.getElementById('registerError').style.display = 'block';
+    }
+    btn.textContent = '注册'; btn.disabled = false;
+  })
+  .catch(function(err) {
+    document.getElementById('registerError').textContent = '网络错误';
+    document.getElementById('registerError').style.display = 'block';
+    btn.textContent = '注册'; btn.disabled = false;
+  });
+}
 </script>
+
+<!-- Login/Register Modal -->
+<div class="modal-overlay" id="loginModal" style="display:none;">
+  <div class="modal-sheet" style="max-width:400px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h3 id="loginModalTitle" style="font-size:18px;background:var(--gradient-hero);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">登录</h3>
+      <button onclick="closeLoginModal()" style="background:none;color:var(--text-muted);font-size:24px;border:none;cursor:pointer;">✕</button>
+    </div>
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <input type="email" id="loginEmail" placeholder="邮箱地址" required style="width:100%;padding:10px 14px;background:var(--bg-glass);border:1px solid var(--border-glass);border-radius:var(--radius-md);color:var(--text-primary);font-size:14px;margin-bottom:10px;box-sizing:border-box;">
+      <input type="password" id="loginPassword" placeholder="密码" required style="width:100%;padding:10px 14px;background:var(--bg-glass);border:1px solid var(--border-glass);border-radius:var(--radius-md);color:var(--text-primary);font-size:14px;margin-bottom:6px;box-sizing:border-box;">
+      <div id="loginError" style="color:#ef4444;font-size:12px;margin-bottom:8px;display:none;"></div>
+      <button type="submit" class="btn btn-primary btn-full" id="loginSubmitBtn">登录</button>
+    </form>
+    <form id="registerForm" onsubmit="handleRegister(event)" style="display:none;">
+      <input type="text" id="regName" placeholder="用户名" required style="width:100%;padding:10px 14px;background:var(--bg-glass);border:1px solid var(--border-glass);border-radius:var(--radius-md);color:var(--text-primary);font-size:14px;margin-bottom:10px;box-sizing:border-box;">
+      <input type="email" id="regEmail" placeholder="邮箱地址" required style="width:100%;padding:10px 14px;background:var(--bg-glass);border:1px solid var(--border-glass);border-radius:var(--radius-md);color:var(--text-primary);font-size:14px;margin-bottom:10px;box-sizing:border-box;">
+      <input type="password" id="regPassword" placeholder="密码" required style="width:100%;padding:10px 14px;background:var(--bg-glass);border:1px solid var(--border-glass);border-radius:var(--radius-md);color:var(--text-primary);font-size:14px;margin-bottom:10px;box-sizing:border-box;">
+      <input type="password" id="regConfirm" placeholder="确认密码" required style="width:100%;padding:10px 14px;background:var(--bg-glass);border:1px solid var(--border-glass);border-radius:var(--radius-md);color:var(--text-primary);font-size:14px;margin-bottom:6px;box-sizing:border-box;">
+      <div id="registerError" style="color:#ef4444;font-size:12px;margin-bottom:8px;display:none;"></div>
+      <button type="submit" class="btn btn-primary btn-full" id="registerSubmitBtn">注册</button>
+    </form>
+    <div style="text-align:center;margin-top:12px;">
+      <span id="toggleText" style="font-size:13px;color:var(--text-muted);">还没有账号？</span>
+      <a href="javascript:void(0)" onclick="toggleAuthForm()" id="toggleLink" style="font-size:13px;color:var(--neon-cyan);margin-left:4px;">注册</a>
+    </div>
+  </div>
+</div>
 </body>
 </html>
